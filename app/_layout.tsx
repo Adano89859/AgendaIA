@@ -1,24 +1,39 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+import { useEffect } from 'react';
+import { initDatabase } from '../database/db';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  useEffect(() => {
+    initDatabase();
+  }, []);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+    <>
+      <StatusBar style="light" />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="event/[id]"
+          options={{
+            headerShown: true,
+            headerTitle: 'Evento',
+            headerStyle: { backgroundColor: '#0f0f0f' },
+            headerTintColor: '#ffffff',
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="event/new"
+          options={{
+            headerShown: true,
+            headerTitle: 'Nuevo Evento',
+            headerStyle: { backgroundColor: '#0f0f0f' },
+            headerTintColor: '#ffffff',
+            presentation: 'modal',
+          }}
+        />
       </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    </>
   );
 }
