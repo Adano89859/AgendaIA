@@ -1,98 +1,201 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+  FlatList,
+  RefreshControl,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Calendar, CalendarUtils } from 'react-native-calendars';
+import { Colors } from '../../constants/colors';
+import { Event, getEvents } from '../../database/db';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const URGENCY_COLORS = {
+  low: '#4CAF50',
+  medium: '#FF9800',
+  high: '#F44336',
+  default: Colors.primary,
+};
 
-export default function HomeScreen() {
+function getUrgencyColor(urgency: string | null) {
+  if (!urgency) return URGENCY_COLORS.default;
+  return URGENCY_COLORS[urgency as keyof typeof URGENCY_COLORS] ?? URGENCY_COLORS.default;
+}
+
+function buildMarkedDates(events: Event[], selected: string) {
+  const marks: Record<string, any> = {};
+  events.forEach((evt) => {
+    const color = getUrgencyColor(evt.urgency);
+    if (!marks[evt.date]) marks[evt.date] = { dots: [] };
+    marks[evt.date].dots.push({ key: String(evt.id), color });
+  });
+  if (selected) {
+    marks[selected] = {
+      ...(marks[selected] ?? {}),
+      selected: true,
+      selectedColor: Colors.primary + '55',
+    };
+  }
+  return marks;
+}
+
+function formatDate(dateString: string): string {
+  const date = new Date(dateString + 'T00:00:00');
+  return date.toLocaleDateString('es-ES', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+}
+
+export default function CalendarScreen() {
+  const today = CalendarUtils.getCalendarDateString(new Date());
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadEvents = useCallback(async () => {
+    const evts = await getEvents();
+    setAllEvents(evts);
+  }, []);
+
+  useFocusEffect(useCallback(() => { loadEvents(); }, [loadEvents]));
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadEvents();
+    setRefreshing(false);
+  }, [loadEvents]);
+
+  const dayEvents = allEvents
+    .filter((e) => e.date === selectedDate)
+    .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''));
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>MRP Agenda</Text>
+        <TouchableOpacity style={styles.addButton} onPress={() => router.push('/event/new')}>
+          <Ionicons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {/* Calendar */}
+      <Calendar
+        current={today}
+        onDayPress={(day) => setSelectedDate(day.dateString)}
+        markingType="multi-dot"
+        markedDates={buildMarkedDates(allEvents, selectedDate)}
+        theme={{
+          backgroundColor: Colors.background,
+          calendarBackground: Colors.background,
+          textSectionTitleColor: Colors.textSecondary,
+          selectedDayBackgroundColor: Colors.primary,
+          selectedDayTextColor: '#ffffff',
+          todayTextColor: Colors.primary,
+          dayTextColor: Colors.text,
+          textDisabledColor: Colors.textMuted,
+          arrowColor: Colors.primary,
+          monthTextColor: Colors.text,
+        }}
+      />
+
+      {/* Events list */}
+      <View style={styles.listContainer}>
+        <View style={styles.dayHeader}>
+          <Text style={styles.dayTitle}>{formatDate(selectedDate)}</Text>
+          <Text style={styles.eventCount}>{dayEvents.length} evento{dayEvents.length !== 1 ? 's' : ''}</Text>
+        </View>
+
+        <FlatList
+          data={dayEvents}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="calendar-outline" size={48} color={Colors.textMuted} />
+              <Text style={styles.emptyText}>Sin eventos este día</Text>
+              <TouchableOpacity style={styles.emptyAddButton} onPress={() => router.push('/event/new')}>
+                <Text style={styles.emptyAddText}>+ Añadir evento</Text>
+              </TouchableOpacity>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity style={styles.eventCard} onPress={() => router.push(`/event/${item.id}`)} activeOpacity={0.7}>
+              <View style={[styles.urgencyBar, { backgroundColor: getUrgencyColor(item.urgency) }]} />
+              <View style={styles.eventContent}>
+                <View style={styles.eventTop}>
+                  <Text style={styles.eventTitle} numberOfLines={1}>{item.title}</Text>
+                  {item.time ? <Text style={styles.eventTime}>{item.time}</Text> : null}
+                </View>
+                {item.client ? (
+                  <Text style={styles.eventClient}>
+                    <Ionicons name="person-outline" size={12} color={Colors.textSecondary} /> {item.client}
+                  </Text>
+                ) : null}
+                {item.urgency ? (
+                  <View style={[styles.urgencyBadge, { backgroundColor: getUrgencyColor(item.urgency) + '22' }]}>
+                    <Text style={[styles.urgencyText, { color: getUrgencyColor(item.urgency) }]}>
+                      {item.urgency === 'low' ? 'Baja' : item.urgency === 'medium' ? 'Media' : 'Alta'}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: { flex: 1, backgroundColor: Colors.background },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  headerTitle: { fontSize: 22, fontWeight: '700', color: Colors.text, letterSpacing: 0.5 },
+  addButton: {
+    backgroundColor: Colors.primary, width: 36, height: 36,
+    borderRadius: 18, alignItems: 'center', justifyContent: 'center',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  listContainer: {
+    flex: 1, backgroundColor: Colors.surface,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20, marginTop: 8,
   },
+  dayHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 10,
+  },
+  dayTitle: { fontSize: 15, fontWeight: '600', color: Colors.text, textTransform: 'capitalize' },
+  eventCount: { fontSize: 12, color: Colors.textSecondary },
+  listContent: { paddingHorizontal: 16, paddingBottom: 24, flexGrow: 1 },
+  eventCard: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card,
+    borderRadius: 12, marginBottom: 10, overflow: 'hidden',
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  urgencyBar: { width: 4, alignSelf: 'stretch' },
+  eventContent: { flex: 1, paddingHorizontal: 12, paddingVertical: 12, gap: 4 },
+  eventTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  eventTitle: { fontSize: 15, fontWeight: '600', color: Colors.text, flex: 1 },
+  eventTime: { fontSize: 13, color: Colors.primary, fontWeight: '500', marginLeft: 8 },
+  eventClient: { fontSize: 13, color: Colors.textSecondary },
+  urgencyBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, marginTop: 2 },
+  urgencyText: { fontSize: 11, fontWeight: '600' },
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12 },
+  emptyText: { fontSize: 16, color: Colors.textMuted },
+  emptyAddButton: {
+    marginTop: 8, paddingHorizontal: 20, paddingVertical: 10,
+    backgroundColor: Colors.primary + '22', borderRadius: 20,
+    borderWidth: 1, borderColor: Colors.primary + '44',
+  },
+  emptyAddText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
 });
