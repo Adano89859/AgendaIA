@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
@@ -13,6 +13,7 @@ import {
 import { Calendar, CalendarUtils } from 'react-native-calendars';
 import { Colors } from '../../constants/colors';
 import { Event, getEvents } from '../../database/db';
+import { i18n, loadSavedLocale } from '../../utils/i18n';
 
 const URGENCY_COLORS = {
   low: '#4CAF50',
@@ -45,7 +46,7 @@ function buildMarkedDates(events: Event[], selected: string) {
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString + 'T00:00:00');
-  return date.toLocaleDateString('es-ES', {
+  return date.toLocaleDateString(i18n.locale === 'pl' ? 'pl-PL' : i18n.locale === 'en' ? 'en-GB' : 'es-ES', {
     weekday: 'long', day: 'numeric', month: 'long',
   });
 }
@@ -55,6 +56,11 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    loadSavedLocale().then(() => forceUpdate(n => n + 1));
+  }, []);
 
   const loadEvents = useCallback(async () => {
     const evts = await getEvents();
@@ -75,7 +81,6 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>MRP Agenda</Text>
         <TouchableOpacity style={styles.addButton} onPress={() => router.push('/event/new')}>
@@ -83,7 +88,6 @@ export default function CalendarScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Calendar */}
       <Calendar
         current={today}
         onDayPress={(day) => setSelectedDate(day.dateString)}
@@ -103,11 +107,12 @@ export default function CalendarScreen() {
         }}
       />
 
-      {/* Events list */}
       <View style={styles.listContainer}>
         <View style={styles.dayHeader}>
           <Text style={styles.dayTitle}>{formatDate(selectedDate)}</Text>
-          <Text style={styles.eventCount}>{dayEvents.length} evento{dayEvents.length !== 1 ? 's' : ''}</Text>
+          <Text style={styles.eventCount}>
+            {dayEvents.length} {i18n.t(dayEvents.length !== 1 ? 'events' : 'event')}
+          </Text>
         </View>
 
         <FlatList
@@ -118,9 +123,9 @@ export default function CalendarScreen() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="calendar-outline" size={48} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>Sin eventos este día</Text>
+              <Text style={styles.emptyText}>{i18n.t('noEvents')}</Text>
               <TouchableOpacity style={styles.emptyAddButton} onPress={() => router.push('/event/new')}>
-                <Text style={styles.emptyAddText}>+ Añadir evento</Text>
+                <Text style={styles.emptyAddText}>{i18n.t('addEvent')}</Text>
               </TouchableOpacity>
             </View>
           }
@@ -140,7 +145,7 @@ export default function CalendarScreen() {
                 {item.urgency ? (
                   <View style={[styles.urgencyBadge, { backgroundColor: getUrgencyColor(item.urgency) + '22' }]}>
                     <Text style={[styles.urgencyText, { color: getUrgencyColor(item.urgency) }]}>
-                      {item.urgency === 'low' ? 'Baja' : item.urgency === 'medium' ? 'Media' : 'Alta'}
+                      {i18n.t(item.urgency)}
                     </Text>
                   </View>
                 ) : null}

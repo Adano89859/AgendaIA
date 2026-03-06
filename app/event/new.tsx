@@ -3,14 +3,10 @@ import { useState } from 'react';
 import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { createEvent } from '../../database/db';
-
-const URGENCY_OPTIONS = [
-  { value: 'low', label: 'Baja', color: '#4CAF50' },
-  { value: 'medium', label: 'Media', color: '#FF9800' },
-  { value: 'high', label: 'Alta', color: '#F44336' },
-];
+import { useLocale } from '../../utils/LocaleContext';
 
 export default function NewEventScreen() {
+  const { t } = useLocale();
   const today = new Date().toISOString().split('T')[0];
   const [title, setTitle] = useState('');
   const [client, setClient] = useState('');
@@ -19,8 +15,14 @@ export default function NewEventScreen() {
   const [date, setDate] = useState(today);
   const [time, setTime] = useState('');
 
+  const URGENCY_OPTIONS = [
+    { value: 'low', label: t('low'), color: '#4CAF50' },
+    { value: 'medium', label: t('medium'), color: '#FF9800' },
+    { value: 'high', label: t('high'), color: '#F44336' },
+  ];
+
   const handleCreate = async () => {
-    if (!title.trim()) { Alert.alert('Error', 'El título es obligatorio'); return; }
+    if (!title.trim()) { Alert.alert('Error', t('titleRequired')); return; }
     await createEvent({ title, client, extra_info: extraInfo, urgency, date, time });
     router.back();
   };
@@ -29,37 +31,41 @@ export default function NewEventScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.field}>
-          <Text style={styles.label}>Título *</Text>
-          <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Nombre del evento" placeholderTextColor={Colors.textMuted} />
+          <Text style={styles.label}>{t('title')} *</Text>
+          <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder={t('titlePlaceholder')} placeholderTextColor={Colors.textMuted} />
         </View>
         <View style={styles.field}>
-          <Text style={styles.label}>Fecha</Text>
+          <Text style={styles.label}>{t('date')}</Text>
           <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} />
         </View>
         <View style={styles.field}>
-          <Text style={styles.label}>Hora</Text>
-          <TextInput style={styles.input} value={time} onChangeText={setTime} placeholder="HH:MM (opcional)" placeholderTextColor={Colors.textMuted} />
+          <Text style={styles.label}>{t('time')}</Text>
+          <TextInput style={styles.input} value={time} onChangeText={setTime} placeholder={t('timePlaceholder')} placeholderTextColor={Colors.textMuted} />
         </View>
         <View style={styles.field}>
-          <Text style={styles.label}>Cliente</Text>
-          <TextInput style={styles.input} value={client} onChangeText={setClient} placeholder="Nombre del cliente (opcional)" placeholderTextColor={Colors.textMuted} />
+          <Text style={styles.label}>{t('client')}</Text>
+          <TextInput style={styles.input} value={client} onChangeText={setClient} placeholder={t('clientPlaceholder')} placeholderTextColor={Colors.textMuted} />
         </View>
         <View style={styles.field}>
-          <Text style={styles.label}>Información extra</Text>
-          <TextInput style={[styles.input, styles.multiline]} value={extraInfo} onChangeText={setExtraInfo} placeholder="Notas adicionales (opcional)" placeholderTextColor={Colors.textMuted} multiline numberOfLines={3} />
+          <Text style={styles.label}>{t('extraInfo')}</Text>
+          <TextInput style={[styles.input, styles.multiline]} value={extraInfo} onChangeText={setExtraInfo} placeholder={t('extraInfoPlaceholder')} placeholderTextColor={Colors.textMuted} multiline numberOfLines={3} />
         </View>
         <View style={styles.field}>
-          <Text style={styles.label}>Urgencia</Text>
+          <Text style={styles.label}>{t('urgency')}</Text>
           <View style={styles.urgencyRow}>
             {URGENCY_OPTIONS.map((opt) => (
-              <TouchableOpacity key={opt.value} style={[styles.urgencyBtn, urgency === opt.value && { backgroundColor: opt.color + '33', borderColor: opt.color }]} onPress={() => setUrgency(urgency === opt.value ? null : opt.value)}>
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.urgencyBtn, urgency === opt.value && { backgroundColor: opt.color + '33', borderColor: opt.color }]}
+                onPress={() => setUrgency(urgency === opt.value ? null : opt.value)}
+              >
                 <Text style={[styles.urgencyBtnText, { color: opt.color }]}>{opt.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
         <TouchableOpacity style={styles.createBtn} onPress={handleCreate}>
-          <Text style={styles.createBtnText}>Crear Evento</Text>
+          <Text style={styles.createBtnText}>{t('create')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

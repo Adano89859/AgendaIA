@@ -1,8 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { Colors } from '../../constants/colors';
+import { useLocale } from '../../utils/LocaleContext';
 
 export default function TabLayout() {
+  const { t } = useLocale();
+
   return (
     <Tabs
       screenOptions={{
@@ -22,7 +25,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Agenda',
+          title: t('agenda'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar" size={size} color={color} />
           ),
@@ -31,7 +34,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="assistant"
         options={{
-          title: 'Asistente',
+          title: t('assistant'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubble-ellipses" size={size} color={color} />
           ),
@@ -40,7 +43,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Ajustes',
+          title: t('settings'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="settings" size={size} color={color} />
           ),

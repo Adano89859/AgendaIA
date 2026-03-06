@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { initDatabase } from '../database/db';
+import { LocaleProvider } from '../utils/LocaleContext';
 
 export default function RootLayout() {
   useEffect(() => {
@@ -9,7 +10,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
+    <LocaleProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
@@ -34,6 +35,6 @@ export default function RootLayout() {
           }}
         />
       </Stack>
-    </>
+    </LocaleProvider>
   );
 }
