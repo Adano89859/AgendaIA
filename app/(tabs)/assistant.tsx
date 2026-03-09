@@ -5,13 +5,13 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
 import { getEvents } from '../../database/db';
 import { Message, sendMessage } from '../../utils/ai/groqService';
@@ -19,6 +19,7 @@ import { useLocale } from '../../utils/LocaleContext';
 
 export default function AssistantScreen() {
   const { t } = useLocale();
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: '¡Hola, Marek! Soy tu asistente de agenda. ¿En qué puedo ayudarte?' }
   ]);
@@ -54,7 +55,7 @@ export default function AssistantScreen() {
   }, [messages]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('assistant')}</Text>
         <View style={styles.statusDot} />
@@ -62,8 +63,8 @@ export default function AssistantScreen() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={90}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <FlatList
           ref={flatListRef}
@@ -90,16 +91,18 @@ export default function AssistantScreen() {
           ) : null}
         />
 
-        <View style={styles.inputRow}>
+        <View style={[
+          styles.inputRow,
+          { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 }
+        ]}>
           <TextInput
             style={styles.input}
             value={input}
             onChangeText={setInput}
-            placeholder="Escribe un mensaje..."
+            placeholder={t('writeMessage')}
             placeholderTextColor={Colors.textMuted}
             multiline
             maxLength={500}
-            onSubmitEditing={handleSend}
           />
           <TouchableOpacity
             style={[styles.sendBtn, (!input.trim() || loading) && styles.sendBtnDisabled]}
@@ -149,7 +152,7 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 10,
-    paddingHorizontal: 16, paddingVertical: 12,
+    paddingHorizontal: 16, paddingTop: 12,
     borderTopWidth: 1, borderTopColor: Colors.border,
     backgroundColor: Colors.surface,
   },

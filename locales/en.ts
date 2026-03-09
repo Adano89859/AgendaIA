@@ -34,4 +34,5 @@ export default {
   timePlaceholder: 'HH:MM (optional)',
   comingSoon: 'Coming soon',
   assistantSub: "Marek's assistant will be ready here",
+  writeMessage: 'Write a message...',
 };

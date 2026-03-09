@@ -34,4 +34,5 @@ export default {
   timePlaceholder: 'GG:MM (opcjonalnie)',
   comingSoon: 'Wkrótce',
   assistantSub: 'Asystent Marka będzie tu gotowy',
+  writeMessage: 'Napisz wiadomość...',
 };

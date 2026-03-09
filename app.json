@@ -22,14 +22,19 @@
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#0f0f0f"
       },
-      "permissions": ["RECORD_AUDIO"],
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
       "package": "com.marek.mrpagenda"
     },
     "plugins": [
       "expo-router",
       "expo-sqlite",
       "expo-speech-recognition",
-      ["expo-localization"]
+      [
+        "expo-localization"
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

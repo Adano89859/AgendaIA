@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
 import { LANGUAGES } from '../../utils/i18n';
 import { useLocale } from '../../utils/LocaleContext';
@@ -20,7 +20,6 @@ export default function SettingsScreen() {
         <Text style={styles.headerTitle}>{t('settings')}</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-
         <Text style={styles.sectionTitle}>{t('language')}</Text>
         <View style={styles.card}>
           {LANGUAGES.map((lang, index) => (
@@ -41,7 +40,6 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           ))}
         </View>
-
         <Text style={styles.sectionTitle}>{t('appInfo')}</Text>
         <View style={styles.card}>
           <View style={[styles.infoRow, styles.langRowBorder]}>
@@ -53,7 +51,6 @@ export default function SettingsScreen() {
             <Text style={styles.infoValue}>Adán Romero Marrero · 2026</Text>
           </View>
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );
