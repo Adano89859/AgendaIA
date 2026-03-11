@@ -1,79 +1,124 @@
+// utils/ai/groqService.ts
+// Cerebras primero (2 modelos) → fallback OpenRouter (2 modelos)
+
+const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+const CEREBRAS_MODELS = ['gpt-oss-120b', 'llama3.1-8b'];
+
+const OPENROUTER_MODELS = [
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'mistralai/mistral-small-3.1-24b-instruct:free',
+];
+
 export interface Message {
-  role: 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
-const MOCK_MODE = true; // Cambiar a false cuando tengamos API key
+const SYSTEM_PROMPT = `Eres un asistente personal de agenda inteligente. 
+Ayudas al usuario a organizar sus eventos, recordatorios y tareas.
+Responde siempre de forma concisa, amigable y en el idioma del usuario.
+Si el usuario menciona fechas, horas o tareas, extrae esa información claramente.`;
 
-async function callGroq(messages: Message[], systemPrompt: string): Promise<string> {
-  const apiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY;
+async function tryCerebras(
+  systemMessage: Message,
+  messages: Message[]
+): Promise<string | null> {
+  const apiKey = process.env.EXPO_PUBLIC_CEREBRAS_API_KEY;
+  if (!apiKey) return null;
 
-  if (MOCK_MODE || !apiKey) {
-    await new Promise(r => setTimeout(r, 800));
-    return getMockResponse(messages[messages.length - 1].content);
+  for (const model of CEREBRAS_MODELS) {
+    try {
+      const response = await fetch(CEREBRAS_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [systemMessage, ...messages],
+          max_tokens: 1024,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        console.warn(`[AI] Cerebras ${model} -> ${response.status}: ${body}`);
+        continue;
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (content) return content;
+    } catch (e) {
+      console.warn(`[AI] Cerebras ${model} excepción:`, e);
+      continue;
+    }
   }
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages,
-      ],
-      max_tokens: 1024,
-      temperature: 0.7,
-    }),
-  });
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content ?? 'Sin respuesta';
+  return null;
 }
 
-function getMockResponse(userMessage: string): string {
-  const msg = userMessage.toLowerCase();
-  if (msg.includes('hola') || msg.includes('hello') || msg.includes('cześć')) {
-    return '¡Hola, Marek! ¿En qué puedo ayudarte hoy con tu agenda?';
+async function tryOpenRouter(
+  systemMessage: Message,
+  messages: Message[]
+): Promise<string | null> {
+  const apiKey = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY;
+  if (!apiKey) return null;
+
+  for (const model of OPENROUTER_MODELS) {
+    try {
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://mrp-agenda.app',
+          'X-Title': 'MRP Agenda',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [systemMessage, ...messages],
+          max_tokens: 1024,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        console.warn(`[AI] OpenRouter ${model} -> ${response.status}: ${body}`);
+        continue;
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (content) return content;
+    } catch (e) {
+      console.warn(`[AI] OpenRouter ${model} excepción:`, e);
+      continue;
+    }
   }
-  if (msg.includes('evento') || msg.includes('event')) {
-    return 'Puedo ayudarte a crear, editar o consultar eventos. ¿Qué necesitas, Marek?';
-  }
-  if (msg.includes('hoy') || msg.includes('today')) {
-    return 'Déjame revisar tu agenda de hoy, Marek. ¿Quieres que te haga un resumen?';
-  }
-  return 'Entendido, Marek. Estoy aquí para ayudarte con tu agenda. ¿Qué necesitas?';
+
+  return null;
 }
 
-export async function sendMessage(
-  messages: Message[],
-  events: any[]
-): Promise<string> {
-  const systemPrompt = buildSystemPrompt(events);
-  return callGroq(messages, systemPrompt);
-}
+export async function sendMessage(messages: Message[]): Promise<string> {
+  const systemMessage: Message = {
+    role: 'system',
+    content: SYSTEM_PROMPT,
+  };
 
-function buildSystemPrompt(events: any[]): string {
-  const eventsContext = events.length > 0
-    ? events.map(e =>
-        `- ${e.date}${e.time ? ' ' + e.time : ''}: ${e.title}${e.client ? ' (cliente: ' + e.client + ')' : ''}${e.urgency ? ' [urgencia: ' + e.urgency + ']' : ''}`
-      ).join('\n')
-    : 'No hay eventos en el calendario.';
+  // 1. Intentar Cerebras (gpt-oss-120b → llama3.1-8b)
+  const cerebrasResponse = await tryCerebras(systemMessage, messages);
+  if (cerebrasResponse) return cerebrasResponse;
 
-  return `Eres un asistente personal de agenda para Marek. 
-Siempre te diriges al usuario como "Marek".
-Tienes acceso al calendario actual:
+  // 2. Fallback OpenRouter (llama-3.3-70b → mistral-small)
+  const openRouterResponse = await tryOpenRouter(systemMessage, messages);
+  if (openRouterResponse) return openRouterResponse;
 
-${eventsContext}
-
-Puedes ayudar a:
-- Consultar eventos existentes
-- Sugerir cuándo crear nuevos eventos
-- Identificar conflictos o conexiones entre eventos
-- Responder en el idioma en que te hablen
-
-Sé conciso, profesional y útil.`;
+  // 3. Todos fallaron
+  throw new Error('No se pudo conectar con ningún proveedor de IA. Inténtalo de nuevo.');
 }
