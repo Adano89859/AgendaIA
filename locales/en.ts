@@ -42,4 +42,11 @@ export default {
   all: 'All',
   allEvents: 'All events',
   urgency_desc: 'Sort: by urgency',
+  welcomeMessage: "Hi, Marek! I'm your agenda assistant. How can I help you?",
+  errorConnecting: 'Error connecting to the assistant.',
+  eventCreated: 'Event "%{title}" created successfully.',
+  eventUpdated: 'Event "%{title}" updated.',
+  eventDeleted: 'Event "%{title}" deleted.',
+  eventCompleted: 'Event "%{title}" marked as completed.',
+  actionCancelled: 'Got it, action cancelled.',
 };

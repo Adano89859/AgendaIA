@@ -39,6 +39,30 @@ type ChatItem =
   | { kind: 'message'; id: string; msg: Message }
   | { kind: 'action'; id: string; parsed: ParsedAIResponse };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatActionContext(status: 'CONFIRMED' | 'CANCELLED', action: AIAction): string {
+  const data = [
+    action.title     ? `title: "${action.title}"` : null,
+    action.date      ? `date: ${action.date}` : null,
+    action.time      ? `time: ${action.time}` : null,
+    action.urgency   ? `urgency: ${action.urgency}` : null,
+    action.client    ? `client: "${action.client}"` : null,
+    action.extraInfo ? `extraInfo: "${action.extraInfo}"` : null,
+    action.id        ? `id: ${action.id}` : null,
+  ].filter(Boolean).join(', ');
+
+  if (status === 'CONFIRMED') {
+    return `[Context] The user confirmed the action "${action.type}". ` +
+      `The following event data was involved and the change is now applied: ${data}. ` +
+      `If the user asks to undo or restore this, you have all the data needed to recreate or revert it — propose it directly without asking for details again.`;
+  } else {
+    return `[Context] The user cancelled the action "${action.type}". ` +
+      `No changes were made. The event data that was proposed: ${data}. ` +
+      `If the user changes their mind, you can propose the same action again immediately.`;
+  }
+}
+
 // ─── ActionCard ───────────────────────────────────────────────────────────────
 
 function ActionCard({
@@ -173,7 +197,7 @@ function ActionCard({
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function AssistantScreen() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const insets = useSafeAreaInsets();
 
   const [chatItems, setChatItems] = useState<ChatItem[]>([
@@ -182,7 +206,7 @@ export default function AssistantScreen() {
       id: 'welcome',
       msg: {
         role: 'assistant',
-        content: '¡Hola, Marek! Soy tu asistente de agenda. ¿En qué puedo ayudarte?',
+        content: t('welcomeMessage'),
       },
     },
   ]);
@@ -192,6 +216,17 @@ export default function AssistantScreen() {
   const [loading, setLoading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const [resolvedActions, setResolvedActions] = useState<Set<string>>(new Set());
+
+  // Actualizar mensaje de bienvenida si cambia el idioma
+  useEffect(() => {
+    setChatItems((prev) =>
+      prev.map((item) =>
+        item.id === 'welcome' && item.kind === 'message'
+          ? { ...item, msg: { ...item.msg, content: t('welcomeMessage') } }
+          : item
+      )
+    );
+  }, [locale]);
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -210,7 +245,7 @@ export default function AssistantScreen() {
 
     try {
       const events = await getEvents();
-      const raw = await sendMessage(newApiMessages, events);
+      const raw = await sendMessage(newApiMessages, events, locale);
       const parsed = parseAIResponse(raw);
 
       const assistantMessage: Message = { role: 'assistant', content: raw };
@@ -246,13 +281,13 @@ export default function AssistantScreen() {
         {
           kind: 'message',
           id: `err-${Date.now()}`,
-          msg: { role: 'assistant', content: 'Error al conectar con el asistente.' },
+          msg: { role: 'assistant', content: t('errorConnecting') },
         },
       ]);
     } finally {
       setLoading(false);
     }
-  }, [input, apiMessages, loading]);
+  }, [input, apiMessages, loading, locale]);
 
   const handleConfirmAction = useCallback(
     async (itemId: string, action: AIAction) => {
@@ -271,7 +306,7 @@ export default function AssistantScreen() {
               client: action.client ?? '',
               extra_info: action.extraInfo ?? '',
             });
-            successMsg = `✅ Evento "${action.title}" creado correctamente.`;
+            successMsg = `✅ ${t('eventCreated').replace('%{title}', action.title ?? '')}`;
             break;
 
           case 'edit_event':
@@ -282,19 +317,26 @@ export default function AssistantScreen() {
               urgency: action.urgency ?? 'medium',
               time: action.time ?? '',
             });
-            successMsg = `✅ Evento "${action.title}" actualizado.`;
+            successMsg = `✅ ${t('eventUpdated').replace('%{title}', action.title ?? '')}`;
             break;
 
           case 'delete_event':
             await deleteEvent(action.id!);
-            successMsg = `🗑️ Evento "${action.title}" eliminado.`;
+            successMsg = `🗑️ ${t('eventDeleted').replace('%{title}', action.title ?? '')}`;
             break;
 
           case 'complete_event':
             await toggleEventCompleted(action.id!, true);
-            successMsg = `✅ Evento "${action.title}" marcado como completado.`;
+            successMsg = `✅ ${t('eventCompleted').replace('%{title}', action.title ?? '')}`;
             break;
         }
+
+        // Inyectar contexto en el historial API (invisible en el chat)
+        const contextMsg: Message = {
+          role: 'user',
+          content: formatActionContext('CONFIRMED', action),
+        };
+        setApiMessages((prev) => [...prev, contextMsg]);
 
         setChatItems((prev) => [
           ...prev,
@@ -308,20 +350,31 @@ export default function AssistantScreen() {
         Alert.alert('Error', 'No se pudo ejecutar la acción. Inténtalo de nuevo.');
       }
     },
-    []
+    [t]
   );
 
-  const handleCancelAction = useCallback((itemId: string) => {
-    setResolvedActions((prev) => new Set(prev).add(itemId));
-    setChatItems((prev) => [
-      ...prev,
-      {
-        kind: 'message',
-        id: `cancel-${Date.now()}`,
-        msg: { role: 'assistant', content: 'De acuerdo, acción cancelada.' },
-      },
-    ]);
-  }, []);
+  const handleCancelAction = useCallback(
+    (itemId: string, action: AIAction) => {
+      setResolvedActions((prev) => new Set(prev).add(itemId));
+
+      // Inyectar contexto en el historial API (invisible en el chat)
+      const contextMsg: Message = {
+        role: 'user',
+        content: formatActionContext('CANCELLED', action),
+      };
+      setApiMessages((prev) => [...prev, contextMsg]);
+
+      setChatItems((prev) => [
+        ...prev,
+        {
+          kind: 'message',
+          id: `cancel-${Date.now()}`,
+          msg: { role: 'assistant', content: t('actionCancelled') },
+        },
+      ]);
+    },
+    [t]
+  );
 
   useEffect(() => {
     if (chatItems.length > 0) {
@@ -374,7 +427,7 @@ export default function AssistantScreen() {
               <ActionCard
                 action={item.parsed.action!}
                 onConfirm={(updated) => handleConfirmAction(item.id, updated)}
-                onCancel={() => handleCancelAction(item.id)}
+                onCancel={() => handleCancelAction(item.id, item.parsed.action!)}
               />
             );
           }}

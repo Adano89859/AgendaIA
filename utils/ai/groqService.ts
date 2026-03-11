@@ -37,8 +37,15 @@ export interface ParsedAIResponse {
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
-function buildSystemPrompt(events: Event[]): string {
+const LOCALE_NAMES: Record<string, string> = {
+  es: 'Spanish',
+  en: 'English',
+  pl: 'Polish',
+};
+
+function buildSystemPrompt(events: Event[], locale: string): string {
   const today = new Date().toISOString().split('T')[0];
+  const languageName = LOCALE_NAMES[locale] ?? 'Spanish';
 
   const eventSummary =
     events.length === 0
@@ -60,11 +67,13 @@ NO eres un asistente general. Si el usuario te pide algo que no tenga relación 
 En ese caso responde amablemente preguntando si quiere añadirlo como evento a la agenda.
 Ejemplo: "Eso está fuera de mi área, pero ¿quieres que lo añada como evento a tu agenda?"
 
+IDIOMA: Responde SIEMPRE en ${languageName}, independientemente del idioma en que escriba el usuario,
+salvo que el usuario cambie explícitamente de idioma en la conversación.
+
 Agenda actual:
 ${eventSummary}
 
 Instrucciones generales:
-- Responde siempre en el mismo idioma que el usuario.
 - Sé conciso y amigable.
 - Puedes consultar, resumir y dar consejos sobre los eventos existentes.
 - Si el usuario pregunta qué tiene pendiente, filtra los no completados.
@@ -205,10 +214,14 @@ async function tryOpenRouter(
 
 // ─── Función principal ────────────────────────────────────────────────────────
 
-export async function sendMessage(messages: Message[], events: Event[]): Promise<string> {
+export async function sendMessage(
+  messages: Message[],
+  events: Event[],
+  locale: string = 'es'
+): Promise<string> {
   const systemMessage: Message = {
     role: 'system',
-    content: buildSystemPrompt(events),
+    content: buildSystemPrompt(events, locale),
   };
 
   const cerebrasResponse = await tryCerebras(systemMessage, messages);

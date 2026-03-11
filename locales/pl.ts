@@ -40,6 +40,13 @@ export default {
   date_desc: 'Sortuj: najstarsze',
   urgency_desc: 'Sortuj: według pilności',
   day: 'Dzień',
-  all: 'Wszystkie', 
-  allEvents: 'Wszystkie wydarzenia'
+  all: 'Wszystkie',
+  allEvents: 'Wszystkie wydarzenia',
+  welcomeMessage: 'Cześć, Marek! Jestem Twoim asystentem agendy. W czym mogę pomóc?',
+  errorConnecting: 'Błąd połączenia z asystentem.',
+  eventCreated: 'Wydarzenie "%{title}" zostało utworzone.',
+  eventUpdated: 'Wydarzenie "%{title}" zaktualizowano.',
+  eventDeleted: 'Wydarzenie "%{title}" usunięto.',
+  eventCompleted: 'Wydarzenie "%{title}" oznaczono jako ukończone.',
+  actionCancelled: 'Dobrze, akcja anulowana.',
 };
