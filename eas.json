@@ -1,0 +1,29 @@
+{
+  "cli": {
+    "version": ">= 18.3.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_CEREBRAS_API_KEY": "$EXPO_PUBLIC_CEREBRAS_API_KEY",
+        "EXPO_PUBLIC_OPENROUTER_API_KEY": "$EXPO_PUBLIC_OPENROUTER_API_KEY"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_CEREBRAS_API_KEY": "$EXPO_PUBLIC_CEREBRAS_API_KEY",
+        "EXPO_PUBLIC_OPENROUTER_API_KEY": "$EXPO_PUBLIC_OPENROUTER_API_KEY"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

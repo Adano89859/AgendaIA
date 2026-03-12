@@ -41,6 +41,7 @@ export default {
   comingSoon: 'Wkrótce',
   assistantSub: 'Asystent Marka będzie tu gotowy',
   writeMessage: 'Napisz wiadomość...',
+  listening: 'Słucham...',
   completed: 'Ukończono',
   date_asc: 'Sortuj: najbliższe',
   date_desc: 'Sortuj: najstarsze',
@@ -59,4 +60,9 @@ export default {
   notificationAdvance: 'Powiadamiaj mnie z wyprzedzeniem',
   notificationTitle: '📅 Przypomnienie',
   notificationBody: '"%{title}" za %{advance}',
+  voice: 'Głos',
+  voiceInput: 'Wejście głosowe',
+  voiceInputHint: 'Włącz mikrofon w czacie, aby dyktować wiadomości do asystenta.',
+  micPermissionTitle: 'Uprawnienie do mikrofonu',
+  micPermissionMessage: 'Aby korzystać z wejścia głosowego, zezwól na dostęp do mikrofonu.',
 };

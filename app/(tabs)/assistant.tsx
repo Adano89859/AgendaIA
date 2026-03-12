@@ -2,6 +2,10 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from 'expo-speech-recognition';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,6 +26,7 @@ import {
   createEvent,
   deleteEvent,
   getEvents,
+  getPreference,
   toggleEventCompleted,
   updateEvent,
 } from '../../database/db';
@@ -33,6 +38,7 @@ import {
   sendMessage,
 } from '../../utils/ai/groqService';
 import { useLocale } from '../../utils/LocaleContext';
+import { VOICE_INPUT_KEY } from './settings';
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -48,7 +54,15 @@ const LOCALE_TO_SPEECH: Record<string, string> = {
   pl: 'pl-PL',
 };
 
-function speak(text: string, locale: string) {
+function speak(
+  text: string,
+  locale: string,
+  callbacks?: {
+    onDone?: () => void;
+    onStopped?: () => void;
+    onError?: () => void;
+  }
+) {
   Speech.stop();
   // Limpiar texto de emojis y símbolos para que suene bien
   const clean = text.replace(/[\u{1F000}-\u{1FFFF}]/gu, '').replace(/[✅🗑️➕✏️⏰📅]/g, '').trim();
@@ -56,6 +70,7 @@ function speak(text: string, locale: string) {
     language: LOCALE_TO_SPEECH[locale] ?? 'es-ES',
     pitch: 1.0,
     rate: 1.0,
+    ...callbacks,
   });
 }
 
@@ -92,7 +107,7 @@ function ActionCard({
   action: AIAction;
   onConfirm: (updated: AIAction) => void;
   onCancel: () => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, unknown>) => string;
 }) {
   const [draft, setDraft] = useState<AIAction>({ ...action });
 
@@ -232,11 +247,26 @@ export default function AssistantScreen() {
   const [loading, setLoading] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [listening, setListening] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const [resolvedActions, setResolvedActions] = useState<Set<string>>(new Set());
 
   // Limpiar TTS al desmontar
   useEffect(() => () => { Speech.stop(); }, []);
+
+  // Cargar preferencia de voz al montar
+  useEffect(() => {
+    setVoiceEnabled(getPreference(VOICE_INPUT_KEY, 'false') === 'true');
+  }, []);
+
+  // Refrescar preferencia de voz cada segundo (por si cambió en ajustes)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVoiceEnabled(getPreference(VOICE_INPUT_KEY, 'false') === 'true');
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Actualizar mensaje de bienvenida si cambia el idioma
   useEffect(() => {
@@ -249,23 +279,59 @@ export default function AssistantScreen() {
     );
   }, [locale]);
 
+  // ─── STT eventos ─────────────────────────────────────────────────────────────
+
+  useSpeechRecognitionEvent('result', (event) => {
+    if (event.results?.[0]?.transcript) {
+      setInput(event.results[0].transcript);
+    }
+  });
+
+  useSpeechRecognitionEvent('end', () => {
+    setListening(false);
+  });
+
+  useSpeechRecognitionEvent('error', () => {
+    setListening(false);
+  });
+
+  const handleMicPress = useCallback(async () => {
+    if (listening) {
+      ExpoSpeechRecognitionModule.stop();
+      setListening(false);
+      return;
+    }
+    try {
+      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!granted) {
+        Alert.alert(t('micPermissionTitle'), t('micPermissionMessage'));
+        return;
+      }
+      setInput('');
+      setListening(true);
+      ExpoSpeechRecognitionModule.start({
+        lang: LOCALE_TO_SPEECH[locale] ?? 'es-ES',
+        interimResults: true,
+        continuous: false,
+      });
+    } catch {
+      setListening(false);
+    }
+  }, [listening, locale, t]);
+
+  // ─── TTS ─────────────────────────────────────────────────────────────────────
+
   const handleSpeak = useCallback((text: string) => {
     if (speaking) {
       Speech.stop();
       setSpeaking(false);
     } else {
       setSpeaking(true);
-      speak(text, locale);
-      // Detectar fin de lectura
-      Speech.speak(
-        text.replace(/[\u{1F000}-\u{1FFFF}]/gu, '').replace(/[✅🗑️➕✏️⏰📅]/g, '').trim(),
-        {
-          language: LOCALE_TO_SPEECH[locale] ?? 'es-ES',
-          onDone: () => setSpeaking(false),
-          onStopped: () => setSpeaking(false),
-          onError: () => setSpeaking(false),
-        }
-      );
+      speak(text, locale, {
+        onDone: () => setSpeaking(false),
+        onStopped: () => setSpeaking(false),
+        onError: () => setSpeaking(false),
+      });
     }
   }, [speaking, locale]);
 
@@ -275,9 +341,17 @@ export default function AssistantScreen() {
     setSpeaking(false);
   }, [ttsEnabled]);
 
+  // ─── Enviar mensaje ───────────────────────────────────────────────────────────
+
   const handleSend = useCallback(async () => {
     const text = input.trim();
     if (!text || loading) return;
+
+    // Parar escucha si está activa al enviar
+    if (listening) {
+      ExpoSpeechRecognitionModule.stop();
+      setListening(false);
+    }
 
     const userMessage: Message = { role: 'user', content: text };
     const newApiMessages = [...apiMessages, userMessage];
@@ -336,7 +410,7 @@ export default function AssistantScreen() {
     } finally {
       setLoading(false);
     }
-  }, [input, apiMessages, loading, locale, ttsEnabled]);
+  }, [input, apiMessages, loading, locale, ttsEnabled, listening]);
 
   const handleConfirmAction = useCallback(
     async (itemId: string, action: AIAction) => {
@@ -530,11 +604,27 @@ export default function AssistantScreen() {
             style={styles.input}
             value={input}
             onChangeText={setInput}
-            placeholder={t('writeMessage')}
-            placeholderTextColor={Colors.textMuted}
+            placeholder={listening ? t('listening') : t('writeMessage')}
+            placeholderTextColor={listening ? Colors.primary : Colors.textMuted}
             multiline
             maxLength={500}
+            editable={!listening}
           />
+
+          {/* Botón micrófono — solo si está habilitado en ajustes */}
+          {voiceEnabled && (
+            <TouchableOpacity
+              style={[styles.micBtn, listening && styles.micBtnActive]}
+              onPress={handleMicPress}
+            >
+              <Ionicons
+                name={listening ? 'stop' : 'mic'}
+                size={20}
+                color="#fff"
+              />
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={[styles.sendBtn, (!input.trim() || loading) && styles.sendBtnDisabled]}
             onPress={handleSend}
@@ -654,6 +744,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  micBtn: {
+    backgroundColor: Colors.textMuted,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  micBtnActive: { backgroundColor: '#E53935' },
   sendBtn: {
     backgroundColor: Colors.primary,
     width: 44,

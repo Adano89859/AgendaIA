@@ -1,6 +1,7 @@
 // app/(tabs)/settings.tsx
 
 import { Ionicons } from '@expo/vector-icons';
+import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
 import { useEffect, useState } from 'react';
 import {
   ScrollView,
@@ -11,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
+import { getPreference, setPreference } from '../../database/db';
 import { LANGUAGES } from '../../utils/i18n';
 import { useLocale } from '../../utils/LocaleContext';
 import {
@@ -20,18 +22,33 @@ import {
   saveAdvanceMinutes,
 } from '../../utils/notifications';
 
+export const VOICE_INPUT_KEY = 'voice_input_enabled';
+
 export default function SettingsScreen() {
   const { locale: currentLocale, changeLocale, t } = useLocale();
   const [advanceMinutes, setAdvanceMinutesState] = useState(15);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
 
   useEffect(() => {
     requestNotificationPermissions();
     setAdvanceMinutesState(getAdvanceMinutes());
+    setVoiceEnabled(getPreference(VOICE_INPUT_KEY, 'false') === 'true');
   }, []);
 
   const handleAdvanceChange = (minutes: number) => {
     saveAdvanceMinutes(minutes);
     setAdvanceMinutesState(minutes);
+  };
+
+  const handleVoiceToggle = async () => {
+    if (!voiceEnabled) {
+      // Pedir permiso de micrófono al activar
+      const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!result.granted) return;
+    }
+    const next = !voiceEnabled;
+    setPreference(VOICE_INPUT_KEY, String(next));
+    setVoiceEnabled(next);
   };
 
   return (
@@ -91,6 +108,25 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Voz */}
+        <Text style={styles.sectionTitle}>{t('voice')}</Text>
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.toggleRow}
+            onPress={handleVoiceToggle}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="mic-outline" size={18} color={Colors.textSecondary} />
+            <Text style={styles.toggleLabel}>{t('voiceInput')}</Text>
+            <View style={[styles.toggle, voiceEnabled && styles.toggleActive]}>
+              <View style={[styles.toggleThumb, voiceEnabled && styles.toggleThumbActive]} />
+            </View>
+          </TouchableOpacity>
+          <View style={styles.voiceHint}>
+            <Text style={styles.voiceHintText}>{t('voiceInputHint')}</Text>
+          </View>
+        </View>
+
         {/* Info app */}
         <Text style={styles.sectionTitle}>{t('appInfo')}</Text>
         <View style={styles.card}>
@@ -144,15 +180,28 @@ const styles = StyleSheet.create({
   },
   advanceBtn: {
     flex: 1, paddingVertical: 8, borderRadius: 8,
-    borderWidth: 1, borderColor: Colors.border,
-    alignItems: 'center',
+    borderWidth: 1, borderColor: Colors.border, alignItems: 'center',
   },
-  advanceBtnActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
+  advanceBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   advanceBtnText: { fontSize: 13, fontWeight: '600', color: Colors.textMuted },
   advanceBtnTextActive: { color: '#fff' },
+  toggleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 16, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
+  },
+  toggleLabel: { flex: 1, fontSize: 15, color: Colors.text, fontWeight: '500' },
+  toggle: {
+    width: 44, height: 24, borderRadius: 12,
+    backgroundColor: Colors.border, justifyContent: 'center', padding: 2,
+  },
+  toggleActive: { backgroundColor: Colors.primary },
+  toggleThumb: {
+    width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff',
+  },
+  toggleThumbActive: { alignSelf: 'flex-end' },
+  voiceHint: { paddingHorizontal: 16, paddingVertical: 10 },
+  voiceHintText: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
   infoRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 14,

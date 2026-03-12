@@ -41,6 +41,7 @@ export default {
   comingSoon: 'Próximamente',
   assistantSub: 'El asistente de Marek estará listo aquí',
   writeMessage: 'Escribe un mensaje...',
+  listening: 'Escuchando...',
   completed: 'Completado',
   date_asc: 'Orden: más cercanos',
   date_desc: 'Orden: más antiguos',
@@ -59,4 +60,9 @@ export default {
   notificationAdvance: 'Avisarme con antelación de',
   notificationTitle: '📅 Recordatorio',
   notificationBody: '"%{title}" en %{advance}',
+  voice: 'Voz',
+  voiceInput: 'Entrada por voz',
+  voiceInputHint: 'Activa el micrófono en el chat para dictar mensajes al asistente.',
+  micPermissionTitle: 'Permiso de micrófono',
+  micPermissionMessage: 'Para usar la entrada por voz, permite el acceso al micrófono.',
 };

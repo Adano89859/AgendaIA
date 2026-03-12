@@ -41,6 +41,7 @@ export default {
   comingSoon: 'Coming soon',
   assistantSub: "Marek's assistant will be ready here",
   writeMessage: 'Write a message...',
+  listening: 'Listening...',
   completed: 'Completed',
   date_asc: 'Sort: closest first',
   date_desc: 'Sort: oldest first',
@@ -59,4 +60,9 @@ export default {
   notificationAdvance: 'Notify me in advance by',
   notificationTitle: '📅 Reminder',
   notificationBody: '"%{title}" in %{advance}',
+  voice: 'Voice',
+  voiceInput: 'Voice input',
+  voiceInputHint: 'Enable the microphone in chat to dictate messages to the assistant.',
+  micPermissionTitle: 'Microphone permission',
+  micPermissionMessage: 'To use voice input, please allow microphone access.',
 };
