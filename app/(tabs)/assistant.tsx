@@ -1,6 +1,7 @@
 // app/(tabs)/assistant.tsx
 
 import { Ionicons } from '@expo/vector-icons';
+import * as Speech from 'expo-speech';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -41,6 +42,23 @@ type ChatItem =
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+const LOCALE_TO_SPEECH: Record<string, string> = {
+  es: 'es-ES',
+  en: 'en-US',
+  pl: 'pl-PL',
+};
+
+function speak(text: string, locale: string) {
+  Speech.stop();
+  // Limpiar texto de emojis y símbolos para que suene bien
+  const clean = text.replace(/[\u{1F000}-\u{1FFFF}]/gu, '').replace(/[✅🗑️➕✏️⏰📅]/g, '').trim();
+  Speech.speak(clean, {
+    language: LOCALE_TO_SPEECH[locale] ?? 'es-ES',
+    pitch: 1.0,
+    rate: 1.0,
+  });
+}
+
 function formatActionContext(status: 'CONFIRMED' | 'CANCELLED', action: AIAction): string {
   const data = [
     action.title     ? `title: "${action.title}"` : null,
@@ -69,10 +87,12 @@ function ActionCard({
   action,
   onConfirm,
   onCancel,
+  t,
 }: {
   action: AIAction;
   onConfirm: (updated: AIAction) => void;
   onCancel: () => void;
+  t: (key: string) => string;
 }) {
   const [draft, setDraft] = useState<AIAction>({ ...action });
 
@@ -80,14 +100,13 @@ function ActionCard({
   const isComplete = action.type === 'complete_event';
 
   const actionLabel: Record<AIAction['type'], string> = {
-    create_event: '➕ Crear evento',
-    edit_event: '✏️ Editar evento',
-    delete_event: '🗑️ Eliminar evento',
-    complete_event: '✅ Completar evento',
+    create_event: `➕ ${t('createEvent')}`,
+    edit_event: `✏️ ${t('editEvent')}`,
+    delete_event: `🗑️ ${t('deleteEvent')}`,
+    complete_event: `✅ ${t('completeEvent')}`,
   };
 
   const urgencyOptions: ('low' | 'medium' | 'high')[] = ['low', 'medium', 'high'];
-  const urgencyLabel: Record<string, string> = { low: 'Baja', medium: 'Media', high: 'Alta' };
 
   return (
     <View style={cardStyles.card}>
@@ -97,16 +116,16 @@ function ActionCard({
         <Text style={cardStyles.deleteTitle}>"{draft.title}"</Text>
       ) : (
         <ScrollView scrollEnabled={false}>
-          <Text style={cardStyles.fieldLabel}>Título *</Text>
+          <Text style={cardStyles.fieldLabel}>{t('title')} *</Text>
           <TextInput
             style={cardStyles.fieldInput}
             value={draft.title ?? ''}
             onChangeText={(v) => setDraft((d) => ({ ...d, title: v }))}
-            placeholder="Título del evento"
+            placeholder={t('titlePlaceholder')}
             placeholderTextColor={Colors.textMuted}
           />
 
-          <Text style={cardStyles.fieldLabel}>Fecha (YYYY-MM-DD)</Text>
+          <Text style={cardStyles.fieldLabel}>{t('date')} (YYYY-MM-DD)</Text>
           <TextInput
             style={cardStyles.fieldInput}
             value={draft.date ?? ''}
@@ -116,7 +135,7 @@ function ActionCard({
             keyboardType="numeric"
           />
 
-          <Text style={cardStyles.fieldLabel}>Hora (HH:MM)</Text>
+          <Text style={cardStyles.fieldLabel}>{t('time')} (HH:MM)</Text>
           <TextInput
             style={cardStyles.fieldInput}
             value={draft.time ?? ''}
@@ -126,16 +145,16 @@ function ActionCard({
             keyboardType="numeric"
           />
 
-          <Text style={cardStyles.fieldLabel}>Cliente</Text>
+          <Text style={cardStyles.fieldLabel}>{t('client')}</Text>
           <TextInput
             style={cardStyles.fieldInput}
             value={draft.client ?? ''}
             onChangeText={(v) => setDraft((d) => ({ ...d, client: v }))}
-            placeholder="Nombre del cliente"
+            placeholder={t('clientPlaceholder')}
             placeholderTextColor={Colors.textMuted}
           />
 
-          <Text style={cardStyles.fieldLabel}>Urgencia</Text>
+          <Text style={cardStyles.fieldLabel}>{t('urgency')}</Text>
           <View style={cardStyles.urgencyRow}>
             {urgencyOptions.map((u) => (
               <TouchableOpacity
@@ -152,18 +171,18 @@ function ActionCard({
                     draft.urgency === u && cardStyles.urgencyBtnTextActive,
                   ]}
                 >
-                  {urgencyLabel[u]}
+                  {t(u)}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <Text style={cardStyles.fieldLabel}>Información extra</Text>
+          <Text style={cardStyles.fieldLabel}>{t('extraInfo')}</Text>
           <TextInput
             style={[cardStyles.fieldInput, cardStyles.fieldInputMulti]}
             value={draft.extraInfo ?? ''}
             onChangeText={(v) => setDraft((d) => ({ ...d, extraInfo: v }))}
-            placeholder="Notas adicionales"
+            placeholder={t('extraInfoPlaceholder')}
             placeholderTextColor={Colors.textMuted}
             multiline
             numberOfLines={2}
@@ -174,7 +193,7 @@ function ActionCard({
       <View style={cardStyles.btnRow}>
         <TouchableOpacity style={cardStyles.cancelBtn} onPress={onCancel}>
           <Ionicons name="close" size={16} color={Colors.textMuted} />
-          <Text style={cardStyles.cancelBtnText}>Cancelar</Text>
+          <Text style={cardStyles.cancelBtnText}>{t('cancel')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
@@ -186,7 +205,7 @@ function ActionCard({
         >
           <Ionicons name="checkmark" size={16} color="#fff" />
           <Text style={cardStyles.confirmBtnText}>
-            {isDelete ? 'Eliminar' : isComplete ? 'Completar' : 'Confirmar'}
+            {isDelete ? t('delete') : isComplete ? t('completed') : t('confirm')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -204,18 +223,20 @@ export default function AssistantScreen() {
     {
       kind: 'message',
       id: 'welcome',
-      msg: {
-        role: 'assistant',
-        content: t('welcomeMessage'),
-      },
+      msg: { role: 'assistant', content: t('welcomeMessage') },
     },
   ]);
 
   const [apiMessages, setApiMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const [resolvedActions, setResolvedActions] = useState<Set<string>>(new Set());
+
+  // Limpiar TTS al desmontar
+  useEffect(() => () => { Speech.stop(); }, []);
 
   // Actualizar mensaje de bienvenida si cambia el idioma
   useEffect(() => {
@@ -227,6 +248,32 @@ export default function AssistantScreen() {
       )
     );
   }, [locale]);
+
+  const handleSpeak = useCallback((text: string) => {
+    if (speaking) {
+      Speech.stop();
+      setSpeaking(false);
+    } else {
+      setSpeaking(true);
+      speak(text, locale);
+      // Detectar fin de lectura
+      Speech.speak(
+        text.replace(/[\u{1F000}-\u{1FFFF}]/gu, '').replace(/[✅🗑️➕✏️⏰📅]/g, '').trim(),
+        {
+          language: LOCALE_TO_SPEECH[locale] ?? 'es-ES',
+          onDone: () => setSpeaking(false),
+          onStopped: () => setSpeaking(false),
+          onError: () => setSpeaking(false),
+        }
+      );
+    }
+  }, [speaking, locale]);
+
+  const toggleTts = useCallback(() => {
+    if (ttsEnabled) Speech.stop();
+    setTtsEnabled((prev) => !prev);
+    setSpeaking(false);
+  }, [ttsEnabled]);
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -261,6 +308,7 @@ export default function AssistantScreen() {
             id: `ai-${Date.now()}`,
             msg: { role: 'assistant', content: parsed.message },
           });
+          if (ttsEnabled) speak(parsed.message, locale);
         }
 
         items.push({ kind: 'action', id: actionId, parsed });
@@ -274,6 +322,7 @@ export default function AssistantScreen() {
             msg: { role: 'assistant', content: parsed.message },
           },
         ]);
+        if (ttsEnabled) speak(parsed.message, locale);
       }
     } catch {
       setChatItems((prev) => [
@@ -287,7 +336,7 @@ export default function AssistantScreen() {
     } finally {
       setLoading(false);
     }
-  }, [input, apiMessages, loading, locale]);
+  }, [input, apiMessages, loading, locale, ttsEnabled]);
 
   const handleConfirmAction = useCallback(
     async (itemId: string, action: AIAction) => {
@@ -306,7 +355,7 @@ export default function AssistantScreen() {
               client: action.client ?? '',
               extra_info: action.extraInfo ?? '',
             });
-            successMsg = `✅ ${t('eventCreated').replace('%{title}', action.title ?? '')}`;
+            successMsg = `✅ ${t('eventCreated', { title: action.title ?? '' })}`;
             break;
 
           case 'edit_event':
@@ -317,21 +366,20 @@ export default function AssistantScreen() {
               urgency: action.urgency ?? 'medium',
               time: action.time ?? '',
             });
-            successMsg = `✅ ${t('eventUpdated').replace('%{title}', action.title ?? '')}`;
+            successMsg = `✅ ${t('eventUpdated', { title: action.title ?? '' })}`;
             break;
 
           case 'delete_event':
             await deleteEvent(action.id!);
-            successMsg = `🗑️ ${t('eventDeleted').replace('%{title}', action.title ?? '')}`;
+            successMsg = `🗑️ ${t('eventDeleted', { title: action.title ?? '' })}`;
             break;
 
           case 'complete_event':
             await toggleEventCompleted(action.id!, true);
-            successMsg = `✅ ${t('eventCompleted').replace('%{title}', action.title ?? '')}`;
+            successMsg = `✅ ${t('eventCompleted', { title: action.title ?? '' })}`;
             break;
         }
 
-        // Inyectar contexto en el historial API (invisible en el chat)
         const contextMsg: Message = {
           role: 'user',
           content: formatActionContext('CONFIRMED', action),
@@ -346,34 +394,36 @@ export default function AssistantScreen() {
             msg: { role: 'assistant', content: successMsg },
           },
         ]);
+        if (ttsEnabled) speak(successMsg, locale);
       } catch {
         Alert.alert('Error', 'No se pudo ejecutar la acción. Inténtalo de nuevo.');
       }
     },
-    [t]
+    [t, ttsEnabled, locale]
   );
 
   const handleCancelAction = useCallback(
     (itemId: string, action: AIAction) => {
       setResolvedActions((prev) => new Set(prev).add(itemId));
 
-      // Inyectar contexto en el historial API (invisible en el chat)
       const contextMsg: Message = {
         role: 'user',
         content: formatActionContext('CANCELLED', action),
       };
       setApiMessages((prev) => [...prev, contextMsg]);
 
+      const msg = t('actionCancelled');
       setChatItems((prev) => [
         ...prev,
         {
           kind: 'message',
           id: `cancel-${Date.now()}`,
-          msg: { role: 'assistant', content: t('actionCancelled') },
+          msg: { role: 'assistant', content: msg },
         },
       ]);
+      if (ttsEnabled) speak(msg, locale);
     },
-    [t]
+    [t, ttsEnabled, locale]
   );
 
   useEffect(() => {
@@ -386,7 +436,20 @@ export default function AssistantScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('assistant')}</Text>
-        <View style={styles.statusDot} />
+        <View style={styles.headerRight}>
+          {/* Botón TTS */}
+          <TouchableOpacity
+            style={[styles.ttsBtn, ttsEnabled && styles.ttsBtnActive]}
+            onPress={toggleTts}
+          >
+            <Ionicons
+              name={ttsEnabled ? 'volume-high' : 'volume-mute'}
+              size={20}
+              color={ttsEnabled ? Colors.primary : Colors.textMuted}
+            />
+          </TouchableOpacity>
+          <View style={styles.statusDot} />
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -401,21 +464,37 @@ export default function AssistantScreen() {
           contentContainerStyle={styles.messageList}
           renderItem={({ item }) => {
             if (item.kind === 'message') {
+              const isAssistant = item.msg.role === 'assistant';
               return (
-                <View
-                  style={[
-                    styles.bubble,
-                    item.msg.role === 'user' ? styles.userBubble : styles.assistantBubble,
-                  ]}
-                >
-                  <Text
+                <View style={styles.bubbleWrapper}>
+                  <View
                     style={[
-                      styles.bubbleText,
-                      item.msg.role === 'user' ? styles.userText : styles.assistantText,
+                      styles.bubble,
+                      isAssistant ? styles.assistantBubble : styles.userBubble,
                     ]}
                   >
-                    {item.msg.content}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.bubbleText,
+                        isAssistant ? styles.assistantText : styles.userText,
+                      ]}
+                    >
+                      {item.msg.content}
+                    </Text>
+                  </View>
+                  {/* Botón de releer solo en mensajes del asistente */}
+                  {isAssistant && (
+                    <TouchableOpacity
+                      style={styles.speakBtn}
+                      onPress={() => handleSpeak(item.msg.content)}
+                    >
+                      <Ionicons
+                        name="volume-medium-outline"
+                        size={14}
+                        color={Colors.textMuted}
+                      />
+                    </TouchableOpacity>
+                  )}
                 </View>
               );
             }
@@ -428,6 +507,7 @@ export default function AssistantScreen() {
                 action={item.parsed.action!}
                 onConfirm={(updated) => handleConfirmAction(item.id, updated)}
                 onCancel={() => handleCancelAction(item.id, item.parsed.action!)}
+                t={t}
               />
             );
           }}
@@ -483,6 +563,24 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   headerTitle: { fontSize: 22, fontWeight: '700', color: Colors.text },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  ttsBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ttsBtnActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary + '18',
+  },
   statusDot: {
     width: 10,
     height: 10,
@@ -490,6 +588,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
   },
   messageList: { padding: 16, gap: 10, paddingBottom: 24 },
+  bubbleWrapper: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+  },
   bubble: {
     maxWidth: '80%',
     borderRadius: 16,
@@ -498,6 +601,7 @@ const styles = StyleSheet.create({
   },
   userBubble: {
     alignSelf: 'flex-end',
+    marginLeft: 'auto',
     backgroundColor: Colors.primary,
     borderBottomRightRadius: 4,
   },
@@ -511,6 +615,15 @@ const styles = StyleSheet.create({
   bubbleText: { fontSize: 15, lineHeight: 22 },
   userText: { color: '#fff' },
   assistantText: { color: Colors.text },
+  speakBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
   loadingBubble: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.card,

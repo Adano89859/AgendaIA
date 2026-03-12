@@ -4,7 +4,7 @@ import { i18n, loadSavedLocale, setLocale as saveLocale } from './i18n';
 type LocaleContextType = {
   locale: string;
   changeLocale: (code: string) => Promise<void>;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, unknown>) => string;
 };
 
 const LocaleContext = createContext<LocaleContextType>({
@@ -25,7 +25,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     setLocale(code);
   };
 
-  const t = (key: string) => i18n.t(key);
+  const t = (key: string, params?: Record<string, unknown>) => i18n.t(key, params);
 
   return (
     <LocaleContext.Provider value={{ locale, changeLocale, t }}>
