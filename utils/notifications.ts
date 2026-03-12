@@ -1,47 +1,84 @@
+// utils/notifications.ts
+
 import * as Notifications from 'expo-notifications';
+import { getPreference, setPreference } from '../database/db';
 
-export async function scheduleEventNotifications(
-  eventId: number,
-  title: string,
-  date: string,
-  time: string
-) {
-  const [hours, minutes] = time.split(':').map(Number);
-  const eventDate = new Date(date + 'T00:00:00');
-  eventDate.setHours(hours, minutes, 0, 0);
+export const NOTIFICATION_ADVANCE_KEY = 'notification_advance_minutes';
+export const DEFAULT_ADVANCE_MINUTES = 15;
 
-  const minus12h = new Date(eventDate.getTime() - 12 * 60 * 60 * 1000);
-  const minus30m = new Date(eventDate.getTime() - 30 * 60 * 1000);
-  const now = new Date();
+export const ADVANCE_OPTIONS = [
+  { value: 15,  label: '15 min' },
+  { value: 30,  label: '30 min' },
+  { value: 60,  label: '1 h' },
+  { value: 120, label: '2 h' },
+];
 
-  if (minus12h > now) {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '📅 Recordatorio (12h)',
-        body: `"${title}" en 12 horas`,
-        data: { eventId },
-      },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: minus12h },
-    });
-  }
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
-  if (minus30m > now) {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '⏰ Recordatorio (30 min)',
-        body: `"${title}" en 30 minutos`,
-        data: { eventId },
-      },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: minus30m },
-    });
-  }
+export async function requestNotificationPermissions(): Promise<boolean> {
+  const { status } = await Notifications.requestPermissionsAsync();
+  return status === 'granted';
 }
 
-export async function cancelEventNotifications(eventId: number) {
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  for (const notif of scheduled) {
-    if (notif.content.data?.eventId === eventId) {
-      await Notifications.cancelScheduledNotificationAsync(notif.identifier);
-    }
+export function getAdvanceMinutes(): number {
+  return Number(getPreference(NOTIFICATION_ADVANCE_KEY, String(DEFAULT_ADVANCE_MINUTES)));
+}
+
+export function saveAdvanceMinutes(minutes: number): void {
+  setPreference(NOTIFICATION_ADVANCE_KEY, String(minutes));
+}
+
+/**
+ * Programa una notificación para el evento.
+ * Devuelve el notificationId o null si la fecha ya pasó o no hay hora.
+ */
+export async function scheduleEventNotification(
+  title: string,
+  date: string,         // YYYY-MM-DD
+  time: string,         // HH:MM o ''
+  notifTitle: string,   // Traducido desde el componente
+  notifBody: string,    // Traducido y formateado desde el componente
+  advanceMinutes?: number
+): Promise<string | null> {
+  if (!time) return null;
+
+  const advance = advanceMinutes ?? getAdvanceMinutes();
+  const [hours, minutes] = time.split(':').map(Number);
+  const eventDate = new Date(`${date}T00:00:00`);
+  eventDate.setHours(hours, minutes, 0, 0);
+
+  const triggerDate = new Date(eventDate.getTime() - advance * 60 * 1000);
+  if (triggerDate <= new Date()) return null;
+
+  const notificationId = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: notifTitle,
+      body: notifBody,
+      sound: true,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: triggerDate,
+    },
+  });
+
+  return notificationId;
+}
+
+/**
+ * Cancela la notificación de un evento por su notificationId.
+ */
+export async function cancelEventNotification(notificationId: string | null): Promise<void> {
+  if (!notificationId) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(notificationId);
+  } catch {
+    // Ya fue disparada o no existe
   }
 }

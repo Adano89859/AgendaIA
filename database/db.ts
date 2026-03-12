@@ -1,3 +1,5 @@
+// database/db.ts
+
 import * as SQLite from 'expo-sqlite';
 
 export interface Event {
@@ -8,7 +10,8 @@ export interface Event {
   urgency: string | null;
   date: string;
   time: string | null;
-  completed: number; // 0 = pendiente, 1 = completado
+  completed: number;
+  notification_id: string | null;
   created_at: string;
 }
 
@@ -25,6 +28,7 @@ function getDb(): SQLite.SQLiteDatabase {
 
 export function initDatabase() {
   const database = getDb();
+
   database.execSync(`
     CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,16 +39,47 @@ export function initDatabase() {
       date TEXT NOT NULL,
       time TEXT,
       completed INTEGER DEFAULT 0,
+      notification_id TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
   `);
-  // Migración: añadir columna completed si no existe (usuarios con BD previa)
-  try {
-    database.execSync(`ALTER TABLE events ADD COLUMN completed INTEGER DEFAULT 0;`);
-  } catch {
-    // Ya existe, ignorar
+
+  database.execSync(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+
+  // Migraciones para bases de datos existentes
+  const migrations = [
+    `ALTER TABLE events ADD COLUMN completed INTEGER DEFAULT 0;`,
+    `ALTER TABLE events ADD COLUMN notification_id TEXT;`,
+  ];
+  for (const sql of migrations) {
+    try { database.execSync(sql); } catch { /* columna ya existe */ }
   }
 }
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+
+export function getPreference(key: string, defaultValue: string): string {
+  const database = getDb();
+  const row = database.getFirstSync<{ value: string }>(
+    'SELECT value FROM settings WHERE key = ?', [key]
+  );
+  return row?.value ?? defaultValue;
+}
+
+export function setPreference(key: string, value: string): void {
+  const database = getDb();
+  database.runSync(
+    'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+    [key, value]
+  );
+}
+
+// ─── Events ──────────────────────────────────────────────────────────────────
 
 export async function getEvents(sort: SortOption = 'date_asc'): Promise<Event[]> {
   const database = getDb();
@@ -105,6 +140,14 @@ export async function updateEvent(
       event.time ?? null,
       id,
     ]
+  );
+}
+
+export async function saveNotificationId(id: number, notificationId: string | null) {
+  const database = getDb();
+  database.runSync(
+    'UPDATE events SET notification_id = ? WHERE id = ?',
+    [notificationId, id]
   );
 }
 

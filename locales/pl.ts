@@ -1,3 +1,4 @@
+// locales/pl.ts
 export default {
   agenda: 'Agenda',
   assistant: 'Asystent',
@@ -49,4 +50,8 @@ export default {
   eventDeleted: 'Wydarzenie "%{title}" usunięto.',
   eventCompleted: 'Wydarzenie "%{title}" oznaczono jako ukończone.',
   actionCancelled: 'Dobrze, akcja anulowana.',
+  notifications: 'Powiadomienia',
+  notificationAdvance: 'Powiadamiaj mnie z wyprzedzeniem',
+  notificationTitle: '📅 Przypomnienie',
+  notificationBody: '"%{title}" za %{advance}',
 };

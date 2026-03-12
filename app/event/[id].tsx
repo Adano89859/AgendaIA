@@ -1,3 +1,5 @@
+// app/event/[id].tsx
+
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -8,8 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
-import { deleteEvent, Event, getEventById, updateEvent } from '../../database/db';
+import { deleteEvent, Event, getEventById, saveNotificationId, updateEvent } from '../../database/db';
 import { useLocale } from '../../utils/LocaleContext';
+import {
+  cancelEventNotification,
+  getAdvanceMinutes,
+  scheduleEventNotification,
+} from '../../utils/notifications';
 
 export default function EventDetailScreen() {
   const { t } = useLocale();
@@ -59,19 +66,48 @@ export default function EventDetailScreen() {
 
   const handleSave = async () => {
     if (!title.trim()) { Alert.alert('Error', t('titleRequired')); return; }
+
+    const timeStr = time ? formatTime(time) : '';
+    const dateStr = formatDate(date);
+
+    await cancelEventNotification(event?.notification_id ?? null);
+
     await updateEvent(Number(id), {
       title, client,
       extra_info: extraInfo,
       urgency,
-      time: time ? formatTime(time) : '',
+      time: timeStr,
     });
+
+    if (timeStr) {
+      const advance = getAdvanceMinutes();
+      const advanceLabel = advance < 60 ? `${advance} min` : `${advance / 60} h`;
+      const notifBody = t('notificationBody', { title, advance: advanceLabel });
+
+      const notificationId = await scheduleEventNotification(
+        title, dateStr, timeStr,
+        t('notificationTitle'),
+        notifBody,
+        advance
+      );
+      await saveNotificationId(Number(id), notificationId);
+    } else {
+      await saveNotificationId(Number(id), null);
+    }
+
     setEditing(false);
   };
 
   const handleDelete = () => {
     Alert.alert(t('delete'), t('deleteConfirm'), [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('delete'), style: 'destructive', onPress: async () => { await deleteEvent(Number(id)); router.back(); } },
+      {
+        text: t('delete'), style: 'destructive', onPress: async () => {
+          await cancelEventNotification(event?.notification_id ?? null);
+          await deleteEvent(Number(id));
+          router.back();
+        }
+      },
     ]);
   };
 
@@ -81,7 +117,6 @@ export default function EventDetailScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
 
-        {/* Título */}
         <View style={styles.row}>
           <Text style={styles.label}>{t('title')} *</Text>
           {editing
@@ -89,7 +124,6 @@ export default function EventDetailScreen() {
             : <Text style={styles.value}>{title || '—'}</Text>}
         </View>
 
-        {/* Fecha */}
         <View style={styles.row}>
           <Text style={styles.label}>{t('date')}</Text>
           {editing ? (
@@ -112,7 +146,6 @@ export default function EventDetailScreen() {
           ) : <Text style={styles.value}>{formatDate(date)}</Text>}
         </View>
 
-        {/* Hora */}
         <View style={styles.row}>
           <Text style={styles.label}>{t('time')}</Text>
           {editing ? (
@@ -143,7 +176,6 @@ export default function EventDetailScreen() {
           ) : <Text style={styles.value}>{time ? formatTime(time) : '—'}</Text>}
         </View>
 
-        {/* Cliente */}
         <View style={styles.row}>
           <Text style={styles.label}>{t('client')}</Text>
           {editing
@@ -151,7 +183,6 @@ export default function EventDetailScreen() {
             : <Text style={styles.value}>{client || '—'}</Text>}
         </View>
 
-        {/* Info extra */}
         <View style={styles.row}>
           <Text style={styles.label}>{t('extraInfo')}</Text>
           {editing
@@ -159,7 +190,6 @@ export default function EventDetailScreen() {
             : <Text style={styles.value}>{extraInfo || '—'}</Text>}
         </View>
 
-        {/* Urgencia */}
         <View style={styles.row}>
           <Text style={styles.label}>{t('urgency')}</Text>
           {editing ? (
@@ -181,7 +211,6 @@ export default function EventDetailScreen() {
           )}
         </View>
 
-        {/* Acciones */}
         <View style={styles.actions}>
           {editing ? (
             <>

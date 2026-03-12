@@ -1,3 +1,5 @@
+// app/event/new.tsx
+
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -7,8 +9,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
-import { createEvent } from '../../database/db';
+import { createEvent, saveNotificationId } from '../../database/db';
 import { useLocale } from '../../utils/LocaleContext';
+import {
+  getAdvanceMinutes,
+  scheduleEventNotification,
+} from '../../utils/notifications';
 
 export default function NewEventScreen() {
   const { t } = useLocale();
@@ -35,14 +41,35 @@ export default function NewEventScreen() {
 
   const handleCreate = async () => {
     if (!title.trim()) { Alert.alert('Error', t('titleRequired')); return; }
-    await createEvent({
+
+    const dateStr = formatDate(date);
+    const timeStr = time ? formatTime(time) : '';
+
+    const newId = await createEvent({
       title,
       client,
       extra_info: extraInfo,
       urgency,
-      date: formatDate(date),
-      time: time ? formatTime(time) : '',
+      date: dateStr,
+      time: timeStr,
     });
+
+    if (newId && timeStr) {
+      const advance = getAdvanceMinutes();
+      const advanceLabel = advance < 60 ? `${advance} min` : `${advance / 60} h`;
+      const notifBody = t('notificationBody', { title, advance: advanceLabel });
+
+      const notificationId = await scheduleEventNotification(
+        title, dateStr, timeStr,
+        t('notificationTitle'),
+        notifBody,
+        advance
+      );
+      if (notificationId) {
+        await saveNotificationId(newId, notificationId);
+      }
+    }
+
     router.back();
   };
 
