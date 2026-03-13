@@ -1,7 +1,7 @@
 // app/(tabs)/settings.tsx
 
 import { Ionicons } from '@expo/vector-icons';
-import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ScrollView,
@@ -21,6 +21,8 @@ import {
   requestNotificationPermissions,
   saveAdvanceMinutes,
 } from '../../utils/notifications';
+import { SpeechRecognitionModule } from '../../utils/speechRecognition';
+import { ONBOARDING_DONE_KEY } from '../onboarding';
 
 export const VOICE_INPUT_KEY = 'voice_input_enabled';
 
@@ -42,13 +44,17 @@ export default function SettingsScreen() {
 
   const handleVoiceToggle = async () => {
     if (!voiceEnabled) {
-      // Pedir permiso de micrófono al activar
-      const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      const result = await SpeechRecognitionModule.requestPermissionsAsync();
       if (!result.granted) return;
     }
     const next = !voiceEnabled;
     setPreference(VOICE_INPUT_KEY, String(next));
     setVoiceEnabled(next);
+  };
+
+  const handleShowTutorial = () => {
+    setPreference(ONBOARDING_DONE_KEY, 'false');
+    router.push('/onboarding');
   };
 
   return (
@@ -127,6 +133,20 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Ayuda */}
+        <Text style={styles.sectionTitle}>{t('help')}</Text>
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.tutorialRow}
+            onPress={handleShowTutorial}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="play-circle-outline" size={20} color={Colors.primary} />
+            <Text style={styles.tutorialLabel}>{t('viewTutorial')}</Text>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+
         {/* Info app */}
         <Text style={styles.sectionTitle}>{t('appInfo')}</Text>
         <View style={styles.card}>
@@ -196,12 +216,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border, justifyContent: 'center', padding: 2,
   },
   toggleActive: { backgroundColor: Colors.primary },
-  toggleThumb: {
-    width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff',
-  },
+  toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
   toggleThumbActive: { alignSelf: 'flex-end' },
   voiceHint: { paddingHorizontal: 16, paddingVertical: 10 },
   voiceHintText: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
+  tutorialRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
+  },
+  tutorialLabel: { flex: 1, fontSize: 15, color: Colors.text, fontWeight: '500' },
   infoRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 14,
