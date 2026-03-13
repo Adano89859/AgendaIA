@@ -49,7 +49,8 @@
           "color": "#ffffff",
           "sounds": []
         }
-      ]
+      ],
+      "expo-mail-composer"
     ],
     "experiments": {
       "typedRoutes": true
