@@ -90,4 +90,14 @@ export default {
   fontSizeSmall: 'Pequeño',
   fontSizeNormal: 'Normal',
   fontSizeLarge: 'Grande',
+  // ── Exportar PDF ──────────────────────────────────────────────────────────
+  exportPDF: 'Exportar PDF',
+  exportFilter: 'Qué exportar',
+  exportAll: 'Todos',
+  exportPending: 'Pendientes',
+  exportToday: 'Hoy',
+  exportWeek: 'Próximos 7 días',
+  exportCount: 'Eventos a exportar:',
+  exportShare: 'Compartir PDF',
+  exportMail: 'Enviar por correo',
 };

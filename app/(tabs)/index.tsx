@@ -1,3 +1,5 @@
+// app/(tabs)/index.tsx
+
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -11,6 +13,7 @@ import {
 } from 'react-native';
 import { Calendar, CalendarUtils } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ExportModal from '../../components/ExportModal';
 import { ThemeColors } from '../../constants/colors';
 import { Event, SortOption, getEvents, toggleEventCompleted } from '../../database/db';
 import { useLocale } from '../../utils/LocaleContext';
@@ -53,7 +56,6 @@ const SORT_OPTIONS: { value: SortOption; icon: string }[] = [
   { value: 'urgency_desc', icon: 'alert-circle-outline' },
 ];
 
-// ── CAMBIO 1: añadir parámetro scale y helper fs ──────────────────────────────
 const makeStyles = (c: ThemeColors, scale: number) => {
   const fs = (n: number) => Math.round(n * scale);
   return StyleSheet.create({
@@ -63,7 +65,6 @@ const makeStyles = (c: ThemeColors, scale: number) => {
       paddingHorizontal: 20, paddingVertical: 14,
       borderBottomWidth: 1, borderBottomColor: c.border,
     },
-    // ── CAMBIO 2: fontSize fijos → fs() ───────────────────────────────────────
     headerTitle: { fontSize: fs(22), fontWeight: '700', color: c.text, letterSpacing: 0.5 },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     iconButton: {
@@ -141,9 +142,7 @@ const makeStyles = (c: ThemeColors, scale: number) => {
 
 export default function CalendarScreen() {
   const { t, locale } = useLocale();
-  // ── CAMBIO 3: extraer fontScale de useTheme ───────────────────────────────
   const { colors, fontScale } = useTheme();
-  // ── CAMBIO 4: pasar fontScale al useMemo ─────────────────────────────────
   const styles = useMemo(() => makeStyles(colors, fontScale), [colors, fontScale]);
 
   const today = CalendarUtils.getCalendarDateString(new Date());
@@ -152,6 +151,8 @@ export default function CalendarScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sort, setSort] = useState<SortOption>('date_asc');
   const [viewMode, setViewMode] = useState<'day' | 'all'>('day');
+  // ── NUEVO: modal de exportación ───────────────────────────────────────────
+  const [exportVisible, setExportVisible] = useState(false);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString + 'T00:00:00');
@@ -256,22 +257,31 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>MRP Agenda</Text>
         <View style={styles.headerActions}>
+          {/* Botón ordenar */}
           <TouchableOpacity style={styles.iconButton} onPress={cycleSort}>
             <Ionicons name={currentSortIcon as any} size={20} color={colors.primary} />
           </TouchableOpacity>
+          {/* ── NUEVO: botón exportar PDF ─────────────────────────────────── */}
+          <TouchableOpacity style={styles.iconButton} onPress={() => setExportVisible(true)}>
+            <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+          </TouchableOpacity>
+          {/* Botón añadir evento */}
           <TouchableOpacity style={styles.addButton} onPress={() => router.push('/event/new')}>
             <Ionicons name="add" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
 
+      {/* Sort label */}
       <View style={styles.sortBar}>
         <Text style={styles.sortLabel}>{t(sort)}</Text>
       </View>
 
+      {/* Calendario */}
       <Calendar
         current={today}
         onDayPress={(day) => {
@@ -294,6 +304,7 @@ export default function CalendarScreen() {
         }}
       />
 
+      {/* Lista */}
       <View style={styles.listContainer}>
         <View style={styles.dayHeader}>
           <Text style={styles.dayTitle} numberOfLines={1}>
@@ -344,6 +355,13 @@ export default function CalendarScreen() {
           renderItem={renderEvent}
         />
       </View>
+
+      {/* ── NUEVO: modal de exportación ──────────────────────────────────── */}
+      <ExportModal
+        visible={exportVisible}
+        onClose={() => setExportVisible(false)}
+        events={allEvents}
+      />
     </SafeAreaView>
   );
 }
