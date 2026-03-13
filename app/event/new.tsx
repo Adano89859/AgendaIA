@@ -2,22 +2,63 @@
 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert, Platform, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/colors';
+import { ThemeColors } from '../../constants/colors';
 import { createEvent, saveNotificationId } from '../../database/db';
 import { useLocale } from '../../utils/LocaleContext';
 import {
   getAdvanceMinutes,
   scheduleEventNotification,
 } from '../../utils/notifications';
+import { useTheme } from '../../utils/ThemeContext';
+
+// ── CAMBIO: añadir scale y fs() ───────────────────────────────────────────────
+const makeStyles = (c: ThemeColors, scale: number) => {
+  const fs = (n: number) => Math.round(n * scale);
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.background },
+    content: { padding: 20, gap: 20 },
+    field: { gap: 6 },
+    label: {
+      fontSize: fs(12), color: c.textSecondary, fontWeight: '600',
+      textTransform: 'uppercase', letterSpacing: 0.5,
+    },
+    input: {
+      backgroundColor: c.surface, borderRadius: 10, padding: 12,
+      color: c.text, fontSize: fs(15), borderWidth: 1, borderColor: c.border,
+    },
+    multiline: { minHeight: 80, textAlignVertical: 'top' },
+    pickerBtn: {
+      backgroundColor: c.surface, borderRadius: 10, padding: 14,
+      borderWidth: 1, borderColor: c.border,
+    },
+    pickerBtnText: { color: c.text, fontSize: fs(15) },
+    clearBtn: { marginTop: 6, alignSelf: 'flex-start' },
+    clearBtnText: { color: c.textSecondary, fontSize: fs(13) },
+    urgencyRow: { flexDirection: 'row', gap: 8 },
+    urgencyBtn: {
+      paddingHorizontal: 14, paddingVertical: 8,
+      borderRadius: 20, borderWidth: 1, borderColor: c.border,
+    },
+    urgencyBtnText: { fontSize: fs(13), fontWeight: '600' },
+    createBtn: {
+      backgroundColor: c.primary, padding: 16,
+      borderRadius: 14, alignItems: 'center', marginTop: 10,
+    },
+    createBtnText: { color: '#fff', fontWeight: '700', fontSize: fs(16) },
+  });
+};
 
 export default function NewEventScreen() {
   const { t } = useLocale();
+  // ── CAMBIO: extraer fontScale de useTheme ─────────────────────────────────
+  const { colors, fontScale } = useTheme();
+  const styles = useMemo(() => makeStyles(colors, fontScale), [colors, fontScale]);
   const today = new Date();
 
   const [title, setTitle] = useState('');
@@ -84,7 +125,7 @@ export default function NewEventScreen() {
             value={title}
             onChangeText={setTitle}
             placeholder={t('titlePlaceholder')}
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
           />
         </View>
 
@@ -139,7 +180,7 @@ export default function NewEventScreen() {
             value={client}
             onChangeText={setClient}
             placeholder={t('clientPlaceholder')}
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
           />
         </View>
 
@@ -150,7 +191,7 @@ export default function NewEventScreen() {
             value={extraInfo}
             onChangeText={setExtraInfo}
             placeholder={t('extraInfoPlaceholder')}
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
             multiline
             numberOfLines={3}
           />
@@ -182,36 +223,3 @@ export default function NewEventScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 20, gap: 20 },
-  field: { gap: 6 },
-  label: {
-    fontSize: 12, color: Colors.textSecondary, fontWeight: '600',
-    textTransform: 'uppercase', letterSpacing: 0.5,
-  },
-  input: {
-    backgroundColor: Colors.surface, borderRadius: 10, padding: 12,
-    color: Colors.text, fontSize: 15, borderWidth: 1, borderColor: Colors.border,
-  },
-  multiline: { minHeight: 80, textAlignVertical: 'top' },
-  pickerBtn: {
-    backgroundColor: Colors.surface, borderRadius: 10, padding: 14,
-    borderWidth: 1, borderColor: Colors.border,
-  },
-  pickerBtnText: { color: Colors.text, fontSize: 15 },
-  clearBtn: { marginTop: 6, alignSelf: 'flex-start' },
-  clearBtnText: { color: Colors.textSecondary, fontSize: 13 },
-  urgencyRow: { flexDirection: 'row', gap: 8 },
-  urgencyBtn: {
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 20, borderWidth: 1, borderColor: Colors.border,
-  },
-  urgencyBtnText: { fontSize: 13, fontWeight: '600' },
-  createBtn: {
-    backgroundColor: Colors.primary, padding: 16,
-    borderRadius: 14, alignItems: 'center', marginTop: 10,
-  },
-  createBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-});

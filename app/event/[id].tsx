@@ -3,13 +3,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert, Platform, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/colors';
+import { ThemeColors } from '../../constants/colors';
 import { deleteEvent, Event, getEventById, saveNotificationId, updateEvent } from '../../database/db';
 import { useLocale } from '../../utils/LocaleContext';
 import {
@@ -17,9 +17,43 @@ import {
   getAdvanceMinutes,
   scheduleEventNotification,
 } from '../../utils/notifications';
+import { useTheme } from '../../utils/ThemeContext';
+
+// ── CAMBIO: añadir scale y fs() ───────────────────────────────────────────────
+const makeStyles = (c: ThemeColors, scale: number) => {
+  const fs = (n: number) => Math.round(n * scale);
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.background },
+    content: { padding: 20, gap: 20 },
+    row: { gap: 6 },
+    label: { fontSize: fs(12), color: c.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+    value: { fontSize: fs(16), color: c.text },
+    input: { backgroundColor: c.surface, borderRadius: 10, padding: 12, color: c.text, fontSize: fs(15), borderWidth: 1, borderColor: c.border },
+    multiline: { minHeight: 80, textAlignVertical: 'top' },
+    pickerBtn: { backgroundColor: c.surface, borderRadius: 10, padding: 14, borderWidth: 1, borderColor: c.border },
+    pickerBtnText: { color: c.text, fontSize: fs(15) },
+    clearBtn: { marginTop: 6, alignSelf: 'flex-start' },
+    clearBtnText: { color: c.textSecondary, fontSize: fs(13) },
+    urgencyRow: { flexDirection: 'row', gap: 8 },
+    urgencyBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: c.border },
+    urgencyBtnText: { fontSize: fs(13), fontWeight: '600' },
+    actions: { flexDirection: 'row', gap: 12, marginTop: 10 },
+    editBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.primary + '22', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: c.primary + '44' },
+    editBtnText: { color: c.primary, fontWeight: '600', fontSize: fs(15) },
+    deleteBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F4433622', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#F4433644' },
+    deleteBtnText: { color: '#F44336', fontWeight: '600', fontSize: fs(15) },
+    saveBtn: { flex: 1, alignItems: 'center', padding: 14, borderRadius: 12, backgroundColor: c.primary },
+    saveBtnText: { color: '#fff', fontWeight: '700', fontSize: fs(15) },
+    cancelBtn: { flex: 1, alignItems: 'center', padding: 14, borderRadius: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
+    cancelBtnText: { color: c.textSecondary, fontWeight: '600', fontSize: fs(15) },
+  });
+};
 
 export default function EventDetailScreen() {
   const { t } = useLocale();
+  // ── CAMBIO: extraer fontScale de useTheme ─────────────────────────────────
+  const { colors, fontScale } = useTheme();
+  const styles = useMemo(() => makeStyles(colors, fontScale), [colors, fontScale]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const [event, setEvent] = useState<Event | null>(null);
   const [title, setTitle] = useState('');
@@ -120,7 +154,7 @@ export default function EventDetailScreen() {
         <View style={styles.row}>
           <Text style={styles.label}>{t('title')} *</Text>
           {editing
-            ? <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholderTextColor={Colors.textMuted} />
+            ? <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholderTextColor={colors.textMuted} />
             : <Text style={styles.value}>{title || '—'}</Text>}
         </View>
 
@@ -179,14 +213,14 @@ export default function EventDetailScreen() {
         <View style={styles.row}>
           <Text style={styles.label}>{t('client')}</Text>
           {editing
-            ? <TextInput style={styles.input} value={client} onChangeText={setClient} placeholderTextColor={Colors.textMuted} />
+            ? <TextInput style={styles.input} value={client} onChangeText={setClient} placeholderTextColor={colors.textMuted} />
             : <Text style={styles.value}>{client || '—'}</Text>}
         </View>
 
         <View style={styles.row}>
           <Text style={styles.label}>{t('extraInfo')}</Text>
           {editing
-            ? <TextInput style={[styles.input, styles.multiline]} value={extraInfo} onChangeText={setExtraInfo} multiline placeholderTextColor={Colors.textMuted} />
+            ? <TextInput style={[styles.input, styles.multiline]} value={extraInfo} onChangeText={setExtraInfo} multiline placeholderTextColor={colors.textMuted} />
             : <Text style={styles.value}>{extraInfo || '—'}</Text>}
         </View>
 
@@ -224,7 +258,7 @@ export default function EventDetailScreen() {
           ) : (
             <>
               <TouchableOpacity style={styles.editBtn} onPress={() => setEditing(true)}>
-                <Ionicons name="pencil" size={16} color={Colors.primary} />
+                <Ionicons name="pencil" size={16} color={colors.primary} />
                 <Text style={styles.editBtnText}>{t('edit')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
@@ -239,29 +273,3 @@ export default function EventDetailScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 20, gap: 20 },
-  row: { gap: 6 },
-  label: { fontSize: 12, color: Colors.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  value: { fontSize: 16, color: Colors.text },
-  input: { backgroundColor: Colors.surface, borderRadius: 10, padding: 12, color: Colors.text, fontSize: 15, borderWidth: 1, borderColor: Colors.border },
-  multiline: { minHeight: 80, textAlignVertical: 'top' },
-  pickerBtn: { backgroundColor: Colors.surface, borderRadius: 10, padding: 14, borderWidth: 1, borderColor: Colors.border },
-  pickerBtnText: { color: Colors.text, fontSize: 15 },
-  clearBtn: { marginTop: 6, alignSelf: 'flex-start' },
-  clearBtnText: { color: Colors.textSecondary, fontSize: 13 },
-  urgencyRow: { flexDirection: 'row', gap: 8 },
-  urgencyBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: Colors.border },
-  urgencyBtnText: { fontSize: 13, fontWeight: '600' },
-  actions: { flexDirection: 'row', gap: 12, marginTop: 10 },
-  editBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: Colors.primary + '22', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: Colors.primary + '44' },
-  editBtnText: { color: Colors.primary, fontWeight: '600' },
-  deleteBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F4433622', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#F4433644' },
-  deleteBtnText: { color: '#F44336', fontWeight: '600' },
-  saveBtn: { flex: 1, alignItems: 'center', padding: 14, borderRadius: 12, backgroundColor: Colors.primary },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  cancelBtn: { flex: 1, alignItems: 'center', padding: 14, borderRadius: 12, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
-  cancelBtnText: { color: Colors.textSecondary, fontWeight: '600', fontSize: 15 },
-});

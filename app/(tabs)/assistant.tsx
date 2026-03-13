@@ -2,11 +2,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,7 +17,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/colors';
+import { ThemeColors } from '../../constants/colors';
 import {
   createEvent,
   deleteEvent,
@@ -38,6 +34,11 @@ import {
   sendMessage,
 } from '../../utils/ai/groqService';
 import { useLocale } from '../../utils/LocaleContext';
+import {
+  SpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from '../../utils/speechRecognition';
+import { useTheme } from '../../utils/ThemeContext';
 import { VOICE_INPUT_KEY } from './settings';
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
@@ -64,7 +65,6 @@ function speak(
   }
 ) {
   Speech.stop();
-  // Limpiar texto de emojis y símbolos para que suene bien
   const clean = text.replace(/[\u{1F000}-\u{1FFFF}]/gu, '').replace(/[✅🗑️➕✏️⏰📅]/g, '').trim();
   Speech.speak(clean, {
     language: LOCALE_TO_SPEECH[locale] ?? 'es-ES',
@@ -109,6 +109,9 @@ function ActionCard({
   onCancel: () => void;
   t: (key: string, params?: Record<string, unknown>) => string;
 }) {
+  // ── CAMBIO: extraer fontScale en ActionCard también ───────────────────────
+  const { colors, fontScale } = useTheme();
+  const cardStyles = useMemo(() => makeCardStyles(colors, fontScale), [colors, fontScale]);
   const [draft, setDraft] = useState<AIAction>({ ...action });
 
   const isDelete = action.type === 'delete_event';
@@ -137,7 +140,7 @@ function ActionCard({
             value={draft.title ?? ''}
             onChangeText={(v) => setDraft((d) => ({ ...d, title: v }))}
             placeholder={t('titlePlaceholder')}
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
           />
 
           <Text style={cardStyles.fieldLabel}>{t('date')} (YYYY-MM-DD)</Text>
@@ -146,7 +149,7 @@ function ActionCard({
             value={draft.date ?? ''}
             onChangeText={(v) => setDraft((d) => ({ ...d, date: v }))}
             placeholder="2026-03-15"
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
             keyboardType="numeric"
           />
 
@@ -156,7 +159,7 @@ function ActionCard({
             value={draft.time ?? ''}
             onChangeText={(v) => setDraft((d) => ({ ...d, time: v }))}
             placeholder="10:00"
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
             keyboardType="numeric"
           />
 
@@ -166,7 +169,7 @@ function ActionCard({
             value={draft.client ?? ''}
             onChangeText={(v) => setDraft((d) => ({ ...d, client: v }))}
             placeholder={t('clientPlaceholder')}
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
           />
 
           <Text style={cardStyles.fieldLabel}>{t('urgency')}</Text>
@@ -198,7 +201,7 @@ function ActionCard({
             value={draft.extraInfo ?? ''}
             onChangeText={(v) => setDraft((d) => ({ ...d, extraInfo: v }))}
             placeholder={t('extraInfoPlaceholder')}
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
             multiline
             numberOfLines={2}
           />
@@ -207,7 +210,7 @@ function ActionCard({
 
       <View style={cardStyles.btnRow}>
         <TouchableOpacity style={cardStyles.cancelBtn} onPress={onCancel}>
-          <Ionicons name="close" size={16} color={Colors.textMuted} />
+          <Ionicons name="close" size={16} color={colors.textMuted} />
           <Text style={cardStyles.cancelBtnText}>{t('cancel')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -232,7 +235,10 @@ function ActionCard({
 
 export default function AssistantScreen() {
   const { t, locale } = useLocale();
+  // ── CAMBIO: extraer fontScale de useTheme ─────────────────────────────────
+  const { colors, fontScale } = useTheme();
   const insets = useSafeAreaInsets();
+  const styles = useMemo(() => makeStyles(colors, fontScale), [colors, fontScale]);
 
   const [chatItems, setChatItems] = useState<ChatItem[]>([
     {
@@ -252,15 +258,12 @@ export default function AssistantScreen() {
   const flatListRef = useRef<FlatList>(null);
   const [resolvedActions, setResolvedActions] = useState<Set<string>>(new Set());
 
-  // Limpiar TTS al desmontar
   useEffect(() => () => { Speech.stop(); }, []);
 
-  // Cargar preferencia de voz al montar
   useEffect(() => {
     setVoiceEnabled(getPreference(VOICE_INPUT_KEY, 'false') === 'true');
   }, []);
 
-  // Refrescar preferencia de voz cada segundo (por si cambió en ajustes)
   useEffect(() => {
     const interval = setInterval(() => {
       setVoiceEnabled(getPreference(VOICE_INPUT_KEY, 'false') === 'true');
@@ -268,7 +271,6 @@ export default function AssistantScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Actualizar mensaje de bienvenida si cambia el idioma
   useEffect(() => {
     setChatItems((prev) =>
       prev.map((item) =>
@@ -278,8 +280,6 @@ export default function AssistantScreen() {
       )
     );
   }, [locale]);
-
-  // ─── STT eventos ─────────────────────────────────────────────────────────────
 
   useSpeechRecognitionEvent('result', (event) => {
     if (event.results?.[0]?.transcript) {
@@ -297,19 +297,19 @@ export default function AssistantScreen() {
 
   const handleMicPress = useCallback(async () => {
     if (listening) {
-      ExpoSpeechRecognitionModule.stop();
+      SpeechRecognitionModule.stop();
       setListening(false);
       return;
     }
     try {
-      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      const { granted } = await SpeechRecognitionModule.requestPermissionsAsync();
       if (!granted) {
         Alert.alert(t('micPermissionTitle'), t('micPermissionMessage'));
         return;
       }
       setInput('');
       setListening(true);
-      ExpoSpeechRecognitionModule.start({
+      SpeechRecognitionModule.start({
         lang: LOCALE_TO_SPEECH[locale] ?? 'es-ES',
         interimResults: true,
         continuous: false,
@@ -318,8 +318,6 @@ export default function AssistantScreen() {
       setListening(false);
     }
   }, [listening, locale, t]);
-
-  // ─── TTS ─────────────────────────────────────────────────────────────────────
 
   const handleSpeak = useCallback((text: string) => {
     if (speaking) {
@@ -341,15 +339,12 @@ export default function AssistantScreen() {
     setSpeaking(false);
   }, [ttsEnabled]);
 
-  // ─── Enviar mensaje ───────────────────────────────────────────────────────────
-
   const handleSend = useCallback(async () => {
     const text = input.trim();
     if (!text || loading) return;
 
-    // Parar escucha si está activa al enviar
     if (listening) {
-      ExpoSpeechRecognitionModule.stop();
+      SpeechRecognitionModule.stop();
       setListening(false);
     }
 
@@ -511,7 +506,6 @@ export default function AssistantScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('assistant')}</Text>
         <View style={styles.headerRight}>
-          {/* Botón TTS */}
           <TouchableOpacity
             style={[styles.ttsBtn, ttsEnabled && styles.ttsBtnActive]}
             onPress={toggleTts}
@@ -519,7 +513,7 @@ export default function AssistantScreen() {
             <Ionicons
               name={ttsEnabled ? 'volume-high' : 'volume-mute'}
               size={20}
-              color={ttsEnabled ? Colors.primary : Colors.textMuted}
+              color={ttsEnabled ? colors.primary : colors.textMuted}
             />
           </TouchableOpacity>
           <View style={styles.statusDot} />
@@ -556,7 +550,6 @@ export default function AssistantScreen() {
                       {item.msg.content}
                     </Text>
                   </View>
-                  {/* Botón de releer solo en mensajes del asistente */}
                   {isAssistant && (
                     <TouchableOpacity
                       style={styles.speakBtn}
@@ -565,7 +558,7 @@ export default function AssistantScreen() {
                       <Ionicons
                         name="volume-medium-outline"
                         size={14}
-                        color={Colors.textMuted}
+                        color={colors.textMuted}
                       />
                     </TouchableOpacity>
                   )}
@@ -588,7 +581,7 @@ export default function AssistantScreen() {
           ListFooterComponent={
             loading ? (
               <View style={styles.loadingBubble}>
-                <ActivityIndicator size="small" color={Colors.primary} />
+                <ActivityIndicator size="small" color={colors.primary} />
               </View>
             ) : null
           }
@@ -605,13 +598,12 @@ export default function AssistantScreen() {
             value={input}
             onChangeText={setInput}
             placeholder={listening ? t('listening') : t('writeMessage')}
-            placeholderTextColor={listening ? Colors.primary : Colors.textMuted}
+            placeholderTextColor={listening ? colors.primary : colors.textMuted}
             multiline
             maxLength={500}
             editable={!listening}
           />
 
-          {/* Botón micrófono — solo si está habilitado en ajustes */}
           {voiceEnabled && (
             <TouchableOpacity
               style={[styles.micBtn, listening && styles.micBtnActive]}
@@ -640,235 +632,243 @@ export default function AssistantScreen() {
 
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  flex: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: Colors.text },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  ttsBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ttsBtnActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary + '18',
-  },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#4CAF50',
-  },
-  messageList: { padding: 16, gap: 10, paddingBottom: 24 },
-  bubbleWrapper: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  bubble: {
-    maxWidth: '80%',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  userBubble: {
-    alignSelf: 'flex-end',
-    marginLeft: 'auto',
-    backgroundColor: Colors.primary,
-    borderBottomRightRadius: 4,
-  },
-  assistantBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.card,
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  bubbleText: { fontSize: 15, lineHeight: 22 },
-  userText: { color: '#fff' },
-  assistantText: { color: Colors.text },
-  speakBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  loadingBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: Colors.card,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    color: Colors.text,
-    fontSize: 15,
-    maxHeight: 100,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  micBtn: {
-    backgroundColor: Colors.textMuted,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  micBtnActive: { backgroundColor: '#E53935' },
-  sendBtn: {
-    backgroundColor: Colors.primary,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendBtnDisabled: { opacity: 0.4 },
-});
+// ── CAMBIO: añadir scale y fs() a makeStyles ─────────────────────────────────
+const makeStyles = (c: ThemeColors, scale: number) => {
+  const fs = (n: number) => Math.round(n * scale);
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.background },
+    flex: { flex: 1 },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    headerTitle: { fontSize: fs(22), fontWeight: '700', color: c.text },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    ttsBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    ttsBtnActive: {
+      borderColor: c.primary,
+      backgroundColor: c.primary + '18',
+    },
+    statusDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: '#4CAF50',
+    },
+    messageList: { padding: 16, gap: 10, paddingBottom: 24 },
+    bubbleWrapper: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 6,
+    },
+    bubble: {
+      maxWidth: '80%',
+      borderRadius: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    userBubble: {
+      alignSelf: 'flex-end',
+      marginLeft: 'auto',
+      backgroundColor: c.primary,
+      borderBottomRightRadius: 4,
+    },
+    assistantBubble: {
+      alignSelf: 'flex-start',
+      backgroundColor: c.card,
+      borderBottomLeftRadius: 4,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    bubbleText: { fontSize: fs(15), lineHeight: Math.round(22 * scale) },
+    userText: { color: '#fff' },
+    assistantText: { color: c.text },
+    speakBtn: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 2,
+    },
+    loadingBubble: {
+      alignSelf: 'flex-start',
+      backgroundColor: c.card,
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      backgroundColor: c.surface,
+    },
+    input: {
+      flex: 1,
+      backgroundColor: c.card,
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      color: c.text,
+      fontSize: fs(15),
+      maxHeight: 100,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    micBtn: {
+      backgroundColor: c.textMuted,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    micBtnActive: { backgroundColor: '#E53935' },
+    sendBtn: {
+      backgroundColor: c.primary,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sendBtnDisabled: { opacity: 0.4 },
+  });
+};
 
-const cardStyles = StyleSheet.create({
-  card: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    padding: 16,
-    marginVertical: 4,
-    gap: 10,
-  },
-  actionLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  deleteTitle: {
-    fontSize: 16,
-    color: Colors.text,
-    fontStyle: 'italic',
-    paddingVertical: 8,
-  },
-  fieldLabel: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    fontWeight: '600',
-    marginBottom: 4,
-    marginTop: 6,
-  },
-  fieldInput: {
-    backgroundColor: Colors.background,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    color: Colors.text,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  fieldInputMulti: {
-    minHeight: 60,
-    textAlignVertical: 'top',
-  },
-  urgencyRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  urgencyBtn: {
-    flex: 1,
-    paddingVertical: 7,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-  },
-  urgencyBtnActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  urgencyBtnText: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    fontWeight: '600',
-  },
-  urgencyBtnTextActive: {
-    color: '#fff',
-  },
-  btnRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 6,
-  },
-  cancelBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  cancelBtnText: {
-    color: Colors.textMuted,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  confirmBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: Colors.primary,
-  },
-  confirmBtnDanger: {
-    backgroundColor: '#E53935',
-  },
-  confirmBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-});
+// ── CAMBIO: añadir scale y fs() a makeCardStyles ─────────────────────────────
+const makeCardStyles = (c: ThemeColors, scale: number) => {
+  const fs = (n: number) => Math.round(n * scale);
+  return StyleSheet.create({
+    card: {
+      backgroundColor: c.card,
+      borderRadius: 16,
+      borderWidth: 1.5,
+      borderColor: c.primary,
+      padding: 16,
+      marginVertical: 4,
+      gap: 10,
+    },
+    actionLabel: {
+      fontSize: fs(13),
+      fontWeight: '700',
+      color: c.primary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    deleteTitle: {
+      fontSize: fs(16),
+      color: c.text,
+      fontStyle: 'italic',
+      paddingVertical: 8,
+    },
+    fieldLabel: {
+      fontSize: fs(12),
+      color: c.textMuted,
+      fontWeight: '600',
+      marginBottom: 4,
+      marginTop: 6,
+    },
+    fieldInput: {
+      backgroundColor: c.background,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      color: c.text,
+      fontSize: fs(15),
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    fieldInputMulti: {
+      minHeight: 60,
+      textAlignVertical: 'top',
+    },
+    urgencyRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    urgencyBtn: {
+      flex: 1,
+      paddingVertical: 7,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+    },
+    urgencyBtnActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    urgencyBtnText: {
+      fontSize: fs(13),
+      color: c.textMuted,
+      fontWeight: '600',
+    },
+    urgencyBtnTextActive: {
+      color: '#fff',
+    },
+    btnRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 6,
+    },
+    cancelBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    cancelBtnText: {
+      color: c.textMuted,
+      fontWeight: '600',
+      fontSize: fs(14),
+    },
+    confirmBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: c.primary,
+    },
+    confirmBtnDanger: {
+      backgroundColor: '#E53935',
+    },
+    confirmBtnText: {
+      color: '#fff',
+      fontWeight: '700',
+      fontSize: fs(14),
+    },
+  });
+};
