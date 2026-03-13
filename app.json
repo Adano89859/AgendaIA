@@ -15,7 +15,11 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.marek.mrpagenda"
+      "bundleIdentifier": "com.marek.mrpagenda",
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +27,10 @@
         "backgroundColor": "#0f0f0f"
       },
       "permissions": [
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "android.permission.RECORD_AUDIO"
       ],
       "package": "com.marek.mrpagenda"
     },
@@ -34,10 +41,24 @@
       [
         "expo-localization"
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#ffffff",
+          "sounds": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8579fac7-4018-4de5-a47f-fbe3d56ea76a"
+      }
     }
   }
 }
