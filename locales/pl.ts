@@ -80,6 +80,8 @@ export default {
   onboardingNotificationsDesc: 'Otrzymuj powiadomienia przed każdym wydarzeniem. Wybierz, z jakim wyprzedzeniem chcesz być informowany.',
   onboardingVoiceTitle: 'Rozmawiaj z aplikacją',
   onboardingVoiceDesc: 'Dyktuj wiadomości do asystenta za pomocą mikrofonu i słuchaj jego odpowiedzi na głos.',
+  onboardingExportTitle: 'Eksportuj swoją agendę',
+  onboardingExportDesc: 'Wygeneruj PDF ze swoimi wydarzeniami i udostępnij go przez e-mail, WhatsApp lub inną aplikację.',
   appearance: 'Wygląd',
   theme: 'Motyw',
   themeDark: 'Ciemny',
@@ -90,7 +92,6 @@ export default {
   fontSizeSmall: 'Mały',
   fontSizeNormal: 'Normalny',
   fontSizeLarge: 'Duży',
-  // ── Eksport PDF ───────────────────────────────────────────────────────────
   exportPDF: 'Eksportuj PDF',
   exportFilter: 'Co eksportować',
   exportAll: 'Wszystkie',
