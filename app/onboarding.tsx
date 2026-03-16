@@ -4,14 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import {
-    Dimensions,
-    FlatList,
-    NativeScrollEvent,
-    NativeSyntheticEvent,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemeColors } from '../constants/colors';
@@ -61,11 +61,19 @@ const FEATURE_SLIDES: FeatureSlide[] = [
     titleKey: 'onboardingVoiceTitle',
     descKey: 'onboardingVoiceDesc',
   },
+  // ── NUEVO: slide exportar PDF ─────────────────────────────────────────────
+  {
+    key: 'export',
+    icon: 'document-text',
+    iconColor: '#00BCD4',
+    titleKey: 'onboardingExportTitle',
+    descKey: 'onboardingExportDesc',
+  },
 ];
 
+// Slide 0 = selector de idioma, slides 1–5 = features
 const TOTAL_SLIDES = 1 + FEATURE_SLIDES.length;
 
-// ── CAMBIO: añadir scale y fs() ───────────────────────────────────────────────
 const makeStyles = (c: ThemeColors, scale: number) => {
   const fs = (n: number) => Math.round(n * scale);
   return StyleSheet.create({
@@ -171,7 +179,6 @@ const makeStyles = (c: ThemeColors, scale: number) => {
 
 export default function OnboardingScreen() {
   const { t, locale, changeLocale } = useLocale();
-  // ── CAMBIO: extraer fontScale de useTheme ─────────────────────────────────
   const { colors, fontScale } = useTheme();
   const styles = useMemo(() => makeStyles(colors, fontScale), [colors, fontScale]);
   const flatListRef = useRef<FlatList>(null);
