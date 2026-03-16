@@ -80,6 +80,8 @@ export default {
   onboardingNotificationsDesc: 'Get notified before each event. Choose how far in advance you want to be reminded.',
   onboardingVoiceTitle: 'Talk to the app',
   onboardingVoiceDesc: 'Dictate messages to the assistant using the microphone and listen to its responses out loud.',
+  onboardingExportTitle: 'Export your agenda',
+  onboardingExportDesc: 'Generate a PDF with your events and share it by email, WhatsApp, or any other app.',
   appearance: 'Appearance',
   theme: 'Theme',
   themeDark: 'Dark',
@@ -90,7 +92,6 @@ export default {
   fontSizeSmall: 'Small',
   fontSizeNormal: 'Normal',
   fontSizeLarge: 'Large',
-  // ── Export PDF ────────────────────────────────────────────────────────────
   exportPDF: 'Export PDF',
   exportFilter: 'What to export',
   exportAll: 'All',
